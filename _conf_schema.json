@@ -1,9 +1,129 @@
 {
+  "output_mode": {
+    "type": "string",
+    "description": "帮助输出方式",
+    "hint": "图片模式使用 AstrBot 原生 HTML 渲染；渲染失败时自动回退为纯文本。",
+    "options": ["image", "text"],
+    "labels": ["图片", "纯文本"],
+    "default": "image"
+  },
+  "overview_title": {
+    "type": "string",
+    "description": "总帮助标题",
+    "hint": "显示在根 /help 最上方。",
+    "default": "可用指令"
+  },
+  "overview_footer": {
+    "type": "text",
+    "description": "总帮助底部提示",
+    "hint": "显示在所有指令摘要之后；留空时使用内置的子帮助提示。",
+    "default": "发送 /help <块名称> 查看对应的详细帮助。"
+  },
+  "help_blocks": {
+    "type": "template_list",
+    "description": "帮助块",
+    "hint": "可反复新增。根 /help 汇总启用块的指令摘要；/help <块名称> 返回该块的完整内容。",
+    "default": [
+      {
+        "__template_key": "help_block",
+        "enabled": true,
+        "block_name": "绘图",
+        "aliases": ["生图", "image", "draw"],
+        "title": "绘图插件",
+        "summary": "根据文字提示生成图片，也可以结合引用图片进行编辑。",
+        "commands": "/生图 <提示词> — 根据提示生成图片\n/生图人物 — 查看已配置的人物参考\n/生图状态 — 查看任务进度与配额",
+        "details": "直接发送 /生图 加完整提示词即可开始生成。\n引用一条带图片的消息再发送 /生图，可将引用图片作为编辑参考。\n生成任务进入后台后，可以继续使用机器人并通过 /生图状态 查询进度。",
+        "show_in_overview": true
+      },
+      {
+        "__template_key": "help_block",
+        "enabled": true,
+        "block_name": "六爻",
+        "aliases": ["起卦", "liuyao"],
+        "title": "六爻起卦",
+        "summary": "支持即时起卦、手动铜币结果或直接指定卦名。",
+        "commands": "/六爻 <问题> — 即时起卦并解读\n/六爻 手动 <六爻或卦名> [方向] [问题] — 使用手摇结果或指定卦名\n/六爻 开|关|状态 — 管理或查看当前群的六爻开关",
+        "details": "方向支持综合、事业、感情、财富、学业、健康、家庭和出行。\n手动数字按初爻到上爻填写：6 老阴、7 少阳、8 少阴、9 老阳。\n也可使用 /起卦 六爻 <问题> 作为等价入口。",
+        "show_in_overview": true
+      },
+      {
+        "__template_key": "help_block",
+        "enabled": true,
+        "block_name": "介绍",
+        "aliases": ["关于", "about"],
+        "title": "机器人介绍",
+        "summary": "这里可以填写机器人、插件集合或使用规则的简短介绍。",
+        "commands": "",
+        "details": "请在插件配置中把这个示例内容替换成你希望展示的详细介绍。",
+        "show_in_overview": false
+      }
+    ],
+    "templates": {
+      "help_block": {
+        "name": "帮助块",
+        "hint": "一个可通过 /help <块名称> 单独查看的帮助主题。",
+        "display_item": "block_name",
+        "hide_hint_in_list": true,
+        "items": {
+          "enabled": {
+            "type": "bool",
+            "description": "启用此帮助块",
+            "default": true
+          },
+          "block_name": {
+            "type": "string",
+            "description": "块名称",
+            "hint": "用于 /help <块名称>，例如：绘图、六爻、介绍。必须保持唯一。",
+            "default": ""
+          },
+          "aliases": {
+            "type": "list",
+            "description": "块名称别名",
+            "hint": "可选。例如绘图块可添加：生图、image、draw。",
+            "default": [],
+            "items": {
+              "type": "string"
+            }
+          },
+          "title": {
+            "type": "string",
+            "description": "显示标题",
+            "hint": "留空时使用块名称。",
+            "default": ""
+          },
+          "summary": {
+            "type": "text",
+            "description": "简短介绍",
+            "hint": "只在 /help <块名称> 的详细帮助中显示。",
+            "default": ""
+          },
+          "commands": {
+            "type": "text",
+            "description": "指令摘要",
+            "hint": "每行一条，例如：/生图 <提示词> — 根据提示生成图片。根 /help 和块详情都会使用。",
+            "default": ""
+          },
+          "details": {
+            "type": "text",
+            "description": "详细说明",
+            "hint": "仅在 /help <块名称> 中显示，可填写示例、参数、规则和注意事项。",
+            "default": ""
+          },
+          "show_in_overview": {
+            "type": "bool",
+            "description": "在根 /help 中显示",
+            "hint": "关闭后仍可通过 /help <块名称> 查看，适合“介绍”“关于”等非指令块。",
+            "default": true
+          }
+        }
+      }
+    }
+  },
   "help_text": {
     "type": "text",
-    "description": "自定义帮助内容",
-    "hint": "用户发送 /help 或 /帮助 时，机器人将原样发送这里填写的多行文本。留空时使用插件内置提示。",
-    "default": "这里是自定义帮助信息。\n\n请在 AstrBot WebUI 的插件配置中修改“自定义帮助内容”。"
+    "description": "旧版帮助内容",
+    "hint": "仅在没有可显示的帮助块时作为兼容回退。",
+    "default": "",
+    "invisible": true
   }
 }
-
