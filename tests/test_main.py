@@ -2,11 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import importlib.util
-import json
-import os
 from pathlib import Path
 import sys
-import tempfile
 import types
 
 
@@ -14,16 +11,10 @@ PLUGIN_DIR = Path(__file__).resolve().parents[1]
 
 
 def _load_plugin_module():
-    package_module = types.ModuleType("astrbot_plugin_custom_help")
-    package_module.__path__ = [str(PLUGIN_DIR)]
     astrbot_module = types.ModuleType("astrbot")
     api_module = types.ModuleType("astrbot.api")
     event_module = types.ModuleType("astrbot.api.event")
     star_module = types.ModuleType("astrbot.api.star")
-    core_module = types.ModuleType("astrbot.core")
-    core_star_module = types.ModuleType("astrbot.core.star")
-    core_filter_module = types.ModuleType("astrbot.core.star.filter")
-    command_module = types.ModuleType("astrbot.core.star.filter.command")
 
     class AstrBotConfig(dict):
         pass
@@ -38,21 +29,6 @@ def _load_plugin_module():
         def __init__(self, context):
             self.context = context
 
-    class StarTools:
-        @staticmethod
-        def get_data_dir(_plugin_name):
-            return (
-                Path(tempfile.gettempdir())
-                / f"astrbot_custom_help_tests_{os.getpid()}"
-            )
-
-    class Logger:
-        def __init__(self):
-            self.warnings = []
-
-        def warning(self, message):
-            self.warnings.append(message)
-
     def command(name, **kwargs):
         def decorator(func):
             func._test_command = {"name": name, **kwargs}
@@ -64,33 +40,20 @@ def _load_plugin_module():
         return lambda cls: cls
 
     api_module.AstrBotConfig = AstrBotConfig
-    api_module.logger = Logger()
     event_module.AstrMessageEvent = AstrMessageEvent
     event_module.filter = types.SimpleNamespace(command=command)
     star_module.Context = Context
     star_module.Star = Star
-    star_module.StarTools = StarTools
     star_module.register = register
-    command_module.GreedyStr = str
 
     modules = {
-        "astrbot_plugin_custom_help": package_module,
         "astrbot": astrbot_module,
         "astrbot.api": api_module,
         "astrbot.api.event": event_module,
         "astrbot.api.star": star_module,
-        "astrbot.core": core_module,
-        "astrbot.core.star": core_star_module,
-        "astrbot.core.star.filter": core_filter_module,
-        "astrbot.core.star.filter.command": command_module,
     }
-    renderer_name = "astrbot_plugin_custom_help.renderer"
-    old_modules = {
-        name: sys.modules.get(name)
-        for name in [*modules, renderer_name]
-    }
+    old_modules = {name: sys.modules.get(name) for name in modules}
     sys.modules.update(modules)
-    sys.modules.pop(renderer_name, None)
     try:
         spec = importlib.util.spec_from_file_location(
             "astrbot_plugin_custom_help.main",
@@ -116,224 +79,41 @@ class _Event:
         self.stopped = True
 
     def plain_result(self, text):
-        return ("plain", text)
-
-    def image_result(self, path):
-        return ("image", path)
+        return text
 
 
 async def _collect(async_generator):
     return [item async for item in async_generator]
 
 
-def _blocks():
-    return [
-        {
-            "enabled": True,
-            "block_name": "绘图",
-            "aliases": ["生图", "draw"],
-            "title": "绘图插件",
-            "summary": "生成或编辑图片。",
-            "commands": "/生图 <提示词> — 生成图片\n/生图状态 — 查看进度",
-            "details": "引用图片后可进行编辑。",
-            "show_in_overview": True,
-        },
-        {
-            "enabled": True,
-            "block_name": "介绍",
-            "aliases": ["关于"],
-            "title": "机器人介绍",
-            "summary": "机器人简介。",
-            "commands": "",
-            "details": "这里是详细介绍。",
-            "show_in_overview": False,
-        },
-        {
-            "enabled": False,
-            "block_name": "停用块",
-            "title": "停用块",
-            "commands": "/disabled — 不应显示",
-        },
-    ]
-
-
-def test_help_handler_has_priority_alias_and_greedy_subcommand():
+def test_help_handler_has_priority_and_alias():
     module = _load_plugin_module()
+
     command = module.CustomHelpPlugin.custom_help._test_command
 
     assert command["name"] == "help"
     assert command["alias"] == {"帮助"}
     assert command["priority"] > 0
-    assert module.CustomHelpPlugin.custom_help.__annotations__["block_name"] == (
-        "GreedyStr"
-    )
 
 
-def test_overview_only_lists_enabled_overview_commands():
+def test_custom_help_stops_event_and_returns_configured_text():
     module = _load_plugin_module()
-    plugin = module.CustomHelpPlugin(
-        object(),
-        {
-            "output_mode": "text",
-            "overview_title": "指令中心",
-            "overview_footer": "查看详情：/help <块名称>",
-            "help_blocks": _blocks(),
-        },
-    )
+    plugin = module.CustomHelpPlugin(object(), {"help_text": "  第一行\n第二行  "})
     event = _Event()
 
-    results = asyncio.run(_collect(plugin.custom_help(event, "")))
+    results = asyncio.run(_collect(plugin.custom_help(event)))
 
     assert event.stopped is True
-    assert results[0][0] == "plain"
-    text = results[0][1]
-    assert text.startswith("指令中心")
-    assert "/生图 <提示词> — 生成图片" in text
-    assert "引用图片后可进行编辑" not in text
-    assert "这里是详细介绍" not in text
-    assert "/disabled" not in text
-    assert "可用帮助块：绘图、介绍" in text
+    assert results == ["第一行\n第二行"]
 
 
-def test_named_block_and_alias_return_detailed_help():
+def test_blank_help_text_uses_nonempty_fallback():
     module = _load_plugin_module()
-    plugin = module.CustomHelpPlugin(
-        object(),
-        {"output_mode": "text", "help_blocks": _blocks()},
-    )
+    plugin = module.CustomHelpPlugin(object(), {"help_text": "   "})
+    event = _Event()
 
-    by_name = asyncio.run(_collect(plugin.custom_help(_Event(), "绘图")))[0][1]
-    by_alias = asyncio.run(_collect(plugin.custom_help(_Event(), "生图")))[0][1]
-    introduction = asyncio.run(_collect(plugin.custom_help(_Event(), "关于")))[0][1]
+    results = asyncio.run(_collect(plugin.custom_help(event)))
 
-    assert by_name == by_alias
-    assert "【绘图插件】" in by_name
-    assert "生成或编辑图片。" in by_name
-    assert "指令列表：" in by_name
-    assert "详细说明：\n引用图片后可进行编辑。" in by_name
-    assert "【机器人介绍】" in introduction
-    assert "这里是详细介绍。" in introduction
+    assert event.stopped is True
+    assert results == [module.DEFAULT_HELP_TEXT]
 
-
-def test_unknown_block_lists_available_names():
-    module = _load_plugin_module()
-    plugin = module.CustomHelpPlugin(
-        object(),
-        {"output_mode": "text", "help_blocks": _blocks()},
-    )
-
-    result = asyncio.run(_collect(plugin.custom_help(_Event(), "不存在")))[0][1]
-
-    assert "没有找到帮助块：不存在" in result
-    assert "可用帮助块：绘图、介绍" in result
-
-
-def test_image_document_has_grouped_commands_without_detail_text():
-    module = _load_plugin_module()
-    plugin = module.CustomHelpPlugin(
-        object(),
-        {"output_mode": "image", "help_blocks": _blocks()},
-    )
-
-    overview = plugin._build_image_document("")
-    detail = plugin._build_image_document("绘图")
-
-    assert overview["kicker"] == "指令总览"
-    assert overview["cards"][0]["title"] == "绘图插件"
-    assert overview["cards"][0]["commands"][0] == {
-        "command": "/生图 <提示词>",
-        "description": "生成图片",
-    }
-    assert "引用图片后可进行编辑" not in json.dumps(
-        overview,
-        ensure_ascii=False,
-    )
-    assert detail["title"] == "绘图插件"
-    assert any(
-        card["body"] == "引用图片后可进行编辑。"
-        for card in detail["cards"]
-    )
-
-
-def test_image_mode_renders_once_then_reuses_cached_file(tmp_path):
-    module = _load_plugin_module()
-    plugin = module.CustomHelpPlugin(
-        object(),
-        {"output_mode": "image", "help_blocks": _blocks()},
-    )
-    plugin.cache_dir = tmp_path
-
-    class FakeRenderer:
-        def __init__(self):
-            self.calls = 0
-
-        def cache_identity(self):
-            return {"format": 1, "theme": "test"}
-
-        def render(self, _document, output_path):
-            self.calls += 1
-            Path(output_path).write_bytes(b"\x89PNG\r\n\x1a\n" + b"x" * 256)
-
-    renderer = FakeRenderer()
-    plugin.renderer = renderer
-
-    first = asyncio.run(_collect(plugin.custom_help(_Event(), "绘图")))
-    second = asyncio.run(_collect(plugin.custom_help(_Event(), "绘图")))
-
-    assert first == second
-    assert first[0][0] == "image"
-    assert Path(first[0][1]).is_file()
-    assert renderer.calls == 1
-
-
-def test_image_render_failure_falls_back_to_plain_text(tmp_path):
-    module = _load_plugin_module()
-    plugin = module.CustomHelpPlugin(
-        object(),
-        {"output_mode": "image", "help_blocks": _blocks()},
-    )
-    plugin.cache_dir = tmp_path
-
-    class FailingRenderer:
-        def cache_identity(self):
-            return {"format": 1}
-
-        def render(self, *_args, **_kwargs):
-            raise RuntimeError("renderer unavailable")
-
-    plugin.renderer = FailingRenderer()
-    result = asyncio.run(_collect(plugin.custom_help(_Event(), "")))
-
-    assert result[0][0] == "plain"
-    assert "/生图状态 — 查看进度" in result[0][1]
-    assert module.logger.warnings
-
-
-def test_schema_exposes_render_theme_and_repeatable_blocks():
-    schema = json.loads((PLUGIN_DIR / "_conf_schema.json").read_text(encoding="utf-8"))
-    blocks = schema["help_blocks"]
-    items = blocks["templates"]["help_block"]["items"]
-
-    assert schema["output_mode"]["default"] == "image"
-    assert schema["image_theme"]["options"] == [
-        "violet",
-        "blue",
-        "green",
-        "rose",
-    ]
-    assert "image_font_path" in schema
-    assert blocks["type"] == "template_list"
-    assert len(blocks["default"]) == 3
-    assert {
-        "enabled",
-        "block_name",
-        "aliases",
-        "title",
-        "summary",
-        "commands",
-        "details",
-        "show_in_overview",
-    } <= items.keys()
-    assert (PLUGIN_DIR / "requirements.txt").read_text(
-        encoding="utf-8"
-    ).strip() == "Pillow>=10.0.0"

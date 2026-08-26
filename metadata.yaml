@@ -1,8 +1,8 @@
 name: astrbot_plugin_custom_help
 display_name: 自定义帮助
-short_desc: 可配置多个帮助块，以总览或子命令形式替换默认 /help。
-desc: 高优先级拦截 /help 和 /帮助；根指令汇总指令摘要，子命令返回块详情，并通过带缓存的本地绘图快速输出帮助图片。
-version: "1.2.0"
+short_desc: 替换 AstrBot 默认的 /help 帮助信息。
+desc: 以高优先级拦截 /help 和 /帮助，停止默认帮助继续响应，并返回 WebUI 中配置的自定义多行文本。
+version: "1.0.0"
 author: Rio
 repo: "https://github.com/RioMaker/astrbot_plugin_custom_help"
 astrbot_version: ">=4.24.0"
