@@ -2,10 +2,24 @@
   "output_mode": {
     "type": "string",
     "description": "帮助输出方式",
-    "hint": "图片模式使用 AstrBot 原生 HTML 渲染；渲染失败时自动回退为纯文本。",
+    "hint": "图片模式使用轻量本地绘图并缓存结果；生成失败时自动回退为纯文本。",
     "options": ["image", "text"],
     "labels": ["图片", "纯文本"],
     "default": "image"
+  },
+  "image_theme": {
+    "type": "string",
+    "description": "帮助图片主题",
+    "hint": "修改主题后会自动生成并缓存一套新的帮助图片。",
+    "options": ["violet", "blue", "green", "rose"],
+    "labels": ["柔紫", "清蓝", "青绿", "玫瑰"],
+    "default": "violet"
+  },
+  "image_font_path": {
+    "type": "string",
+    "description": "自定义中文字体路径",
+    "hint": "通常留空自动查找系统中文字体；也可填写 .ttf/.ttc/.otf 绝对路径。找不到中文字体时自动回退纯文本。",
+    "default": ""
   },
   "overview_title": {
     "type": "string",

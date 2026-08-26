@@ -3,8 +3,10 @@ from __future__ import annotations
 import asyncio
 import importlib.util
 import json
+import os
 from pathlib import Path
 import sys
+import tempfile
 import types
 
 
@@ -12,6 +14,8 @@ PLUGIN_DIR = Path(__file__).resolve().parents[1]
 
 
 def _load_plugin_module():
+    package_module = types.ModuleType("astrbot_plugin_custom_help")
+    package_module.__path__ = [str(PLUGIN_DIR)]
     astrbot_module = types.ModuleType("astrbot")
     api_module = types.ModuleType("astrbot.api")
     event_module = types.ModuleType("astrbot.api.event")
@@ -33,6 +37,14 @@ def _load_plugin_module():
     class Star:
         def __init__(self, context):
             self.context = context
+
+    class StarTools:
+        @staticmethod
+        def get_data_dir(_plugin_name):
+            return (
+                Path(tempfile.gettempdir())
+                / f"astrbot_custom_help_tests_{os.getpid()}"
+            )
 
     class Logger:
         def __init__(self):
@@ -57,10 +69,12 @@ def _load_plugin_module():
     event_module.filter = types.SimpleNamespace(command=command)
     star_module.Context = Context
     star_module.Star = Star
+    star_module.StarTools = StarTools
     star_module.register = register
     command_module.GreedyStr = str
 
     modules = {
+        "astrbot_plugin_custom_help": package_module,
         "astrbot": astrbot_module,
         "astrbot.api": api_module,
         "astrbot.api.event": event_module,
@@ -70,8 +84,13 @@ def _load_plugin_module():
         "astrbot.core.star.filter": core_filter_module,
         "astrbot.core.star.filter.command": command_module,
     }
-    old_modules = {name: sys.modules.get(name) for name in modules}
+    renderer_name = "astrbot_plugin_custom_help.renderer"
+    old_modules = {
+        name: sys.modules.get(name)
+        for name in [*modules, renderer_name]
+    }
     sys.modules.update(modules)
+    sys.modules.pop(renderer_name, None)
     try:
         spec = importlib.util.spec_from_file_location(
             "astrbot_plugin_custom_help.main",
@@ -99,8 +118,8 @@ class _Event:
     def plain_result(self, text):
         return ("plain", text)
 
-    def image_result(self, url):
-        return ("image", url)
+    def image_result(self, path):
+        return ("image", path)
 
 
 async def _collect(async_generator):
@@ -145,7 +164,9 @@ def test_help_handler_has_priority_alias_and_greedy_subcommand():
     assert command["name"] == "help"
     assert command["alias"] == {"帮助"}
     assert command["priority"] > 0
-    assert module.CustomHelpPlugin.custom_help.__annotations__["block_name"] == "GreedyStr"
+    assert module.CustomHelpPlugin.custom_help.__annotations__["block_name"] == (
+        "GreedyStr"
+    )
 
 
 def test_overview_only_lists_enabled_overview_commands():
@@ -207,38 +228,80 @@ def test_unknown_block_lists_available_names():
     assert "可用帮助块：绘图、介绍" in result
 
 
-def test_image_mode_uses_html_render_and_image_result():
-    module = _load_plugin_module()
-    plugin = module.CustomHelpPlugin(
-        object(),
-        {"output_mode": "image", "help_blocks": _blocks()},
-    )
-    captured = {}
-
-    async def html_render(template, data, options):
-        captured.update(template=template, data=data, options=options)
-        return "https://example.test/help.png"
-
-    plugin.html_render = html_render
-    result = asyncio.run(_collect(plugin.custom_help(_Event(), "绘图")))
-
-    assert result == [("image", "https://example.test/help.png")]
-    assert captured["data"]["label"] == "详细帮助"
-    assert "绘图插件" in captured["data"]["content"]
-    assert captured["options"]["type"] == "png"
-
-
-def test_image_render_failure_falls_back_to_plain_text():
+def test_image_document_has_grouped_commands_without_detail_text():
     module = _load_plugin_module()
     plugin = module.CustomHelpPlugin(
         object(),
         {"output_mode": "image", "help_blocks": _blocks()},
     )
 
-    async def html_render(*_args, **_kwargs):
-        raise RuntimeError("renderer unavailable")
+    overview = plugin._build_image_document("")
+    detail = plugin._build_image_document("绘图")
 
-    plugin.html_render = html_render
+    assert overview["kicker"] == "指令总览"
+    assert overview["cards"][0]["title"] == "绘图插件"
+    assert overview["cards"][0]["commands"][0] == {
+        "command": "/生图 <提示词>",
+        "description": "生成图片",
+    }
+    assert "引用图片后可进行编辑" not in json.dumps(
+        overview,
+        ensure_ascii=False,
+    )
+    assert detail["title"] == "绘图插件"
+    assert any(
+        card["body"] == "引用图片后可进行编辑。"
+        for card in detail["cards"]
+    )
+
+
+def test_image_mode_renders_once_then_reuses_cached_file(tmp_path):
+    module = _load_plugin_module()
+    plugin = module.CustomHelpPlugin(
+        object(),
+        {"output_mode": "image", "help_blocks": _blocks()},
+    )
+    plugin.cache_dir = tmp_path
+
+    class FakeRenderer:
+        def __init__(self):
+            self.calls = 0
+
+        def cache_identity(self):
+            return {"format": 1, "theme": "test"}
+
+        def render(self, _document, output_path):
+            self.calls += 1
+            Path(output_path).write_bytes(b"\x89PNG\r\n\x1a\n" + b"x" * 256)
+
+    renderer = FakeRenderer()
+    plugin.renderer = renderer
+
+    first = asyncio.run(_collect(plugin.custom_help(_Event(), "绘图")))
+    second = asyncio.run(_collect(plugin.custom_help(_Event(), "绘图")))
+
+    assert first == second
+    assert first[0][0] == "image"
+    assert Path(first[0][1]).is_file()
+    assert renderer.calls == 1
+
+
+def test_image_render_failure_falls_back_to_plain_text(tmp_path):
+    module = _load_plugin_module()
+    plugin = module.CustomHelpPlugin(
+        object(),
+        {"output_mode": "image", "help_blocks": _blocks()},
+    )
+    plugin.cache_dir = tmp_path
+
+    class FailingRenderer:
+        def cache_identity(self):
+            return {"format": 1}
+
+        def render(self, *_args, **_kwargs):
+            raise RuntimeError("renderer unavailable")
+
+    plugin.renderer = FailingRenderer()
     result = asyncio.run(_collect(plugin.custom_help(_Event(), "")))
 
     assert result[0][0] == "plain"
@@ -246,12 +309,19 @@ def test_image_render_failure_falls_back_to_plain_text():
     assert module.logger.warnings
 
 
-def test_schema_exposes_repeatable_blocks_and_output_mode():
+def test_schema_exposes_render_theme_and_repeatable_blocks():
     schema = json.loads((PLUGIN_DIR / "_conf_schema.json").read_text(encoding="utf-8"))
     blocks = schema["help_blocks"]
     items = blocks["templates"]["help_block"]["items"]
 
     assert schema["output_mode"]["default"] == "image"
+    assert schema["image_theme"]["options"] == [
+        "violet",
+        "blue",
+        "green",
+        "rose",
+    ]
+    assert "image_font_path" in schema
     assert blocks["type"] == "template_list"
     assert len(blocks["default"]) == 3
     assert {
@@ -264,3 +334,6 @@ def test_schema_exposes_repeatable_blocks_and_output_mode():
         "details",
         "show_in_overview",
     } <= items.keys()
+    assert (PLUGIN_DIR / "requirements.txt").read_text(
+        encoding="utf-8"
+    ).strip() == "Pillow>=10.0.0"

@@ -2,83 +2,35 @@
 
 from __future__ import annotations
 
+import asyncio
+import hashlib
+import json
+from pathlib import Path
 import re
 from typing import Any
 
 from astrbot.api import AstrBotConfig, logger
 from astrbot.api.event import AstrMessageEvent, filter
-from astrbot.api.star import Context, Star, register
+from astrbot.api.star import Context, Star, StarTools, register
 from astrbot.core.star.filter.command import GreedyStr
+
+if __package__:
+    from .renderer import HelpImageRenderer, HelpRenderError
+else:  # pragma: no cover - direct local execution
+    from renderer import HelpImageRenderer, HelpRenderError
 
 
 PLUGIN_NAME = "astrbot_plugin_custom_help"
 PLUGIN_AUTHOR = "Rio"
-PLUGIN_DESC = "用可配置帮助块替换 AstrBot 默认帮助，支持总览、子命令和图片输出"
-PLUGIN_VERSION = "1.1.0"
+PLUGIN_DESC = "用可配置帮助块替换 AstrBot 默认帮助，支持总览、子命令和快速图片输出"
+PLUGIN_VERSION = "1.2.0"
 PLUGIN_REPO = "https://github.com/RioMaker/astrbot_plugin_custom_help"
 
 HELP_PRIORITY = 1000
+CACHE_FILE_LIMIT = 24
 DEFAULT_OVERVIEW_TITLE = "可用指令"
 DEFAULT_OVERVIEW_FOOTER = "发送 /help <块名称> 查看对应的详细帮助。"
 DEFAULT_EMPTY_HELP = "尚未配置帮助块，请先在 AstrBot WebUI 中添加帮助块。"
-
-HELP_IMAGE_TEMPLATE = """
-<!doctype html>
-<html lang="zh-CN">
-<head>
-  <meta charset="utf-8">
-  <style>
-    * { box-sizing: border-box; }
-    html, body { margin: 0; padding: 0; background: #edf1f7; }
-    body {
-      width: 920px;
-      padding: 34px;
-      color: #182033;
-      font-family: "Noto Sans CJK SC", "Microsoft YaHei", sans-serif;
-    }
-    .card {
-      width: 100%;
-      padding: 42px 46px 46px;
-      border: 1px solid #d9e0ec;
-      border-radius: 26px;
-      background: #ffffff;
-      box-shadow: 0 18px 48px rgba(35, 48, 74, 0.12);
-    }
-    .eyebrow {
-      margin-bottom: 14px;
-      color: #52647f;
-      font-size: 18px;
-      font-weight: 700;
-      letter-spacing: 0.14em;
-    }
-    .content {
-      margin: 0;
-      color: #182033;
-      font-family: "Noto Sans Mono CJK SC", "Microsoft YaHei", monospace;
-      font-size: 25px;
-      font-weight: 500;
-      line-height: 1.72;
-      overflow-wrap: anywhere;
-      white-space: pre-wrap;
-    }
-    .rule {
-      width: 72px;
-      height: 6px;
-      margin: 0 0 26px;
-      border-radius: 999px;
-      background: linear-gradient(90deg, #5b6cf9, #8b5cf6);
-    }
-  </style>
-</head>
-<body>
-  <main class="card">
-    <div class="eyebrow">{{ label|e }}</div>
-    <div class="rule"></div>
-    <pre class="content">{{ content|e }}</pre>
-  </main>
-</body>
-</html>
-"""
 
 
 @register(
@@ -94,6 +46,30 @@ class CustomHelpPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig):
         super().__init__(context)
         self.config = config
+        self._render_lock = asyncio.Lock()
+        self.cache_dir: Path | None = None
+        self.renderer: HelpImageRenderer | None = None
+
+        try:
+            data_dir = Path(StarTools.get_data_dir(PLUGIN_NAME))
+            self.cache_dir = data_dir / "image_cache"
+            self.cache_dir.mkdir(parents=True, exist_ok=True)
+        except Exception as exc:
+            logger.warning(
+                "[custom_help] 无法创建帮助图片缓存目录，将回退纯文本："
+                f"{type(exc).__name__}"
+            )
+
+        try:
+            self.renderer = HelpImageRenderer(
+                font_path=self._config_text("image_font_path", ""),
+                theme=self._config_text("image_theme", "violet"),
+            )
+        except (HelpRenderError, OSError, ValueError) as exc:
+            logger.warning(
+                "[custom_help] 本地帮助图片渲染器不可用，将回退纯文本："
+                f"{type(exc).__name__}"
+            )
 
     @filter.command("help", alias={"帮助"}, priority=HELP_PRIORITY)
     async def custom_help(
@@ -104,41 +80,87 @@ class CustomHelpPlugin(Star):
         """返回帮助总览或指定帮助块，并阻止框架默认帮助继续响应。"""
         query = str(block_name or "").strip()
         if query:
-            text, label = self._build_detail(query), "详细帮助"
+            text = self._build_detail(query)
         else:
-            text, label = self._build_overview(), "指令总览"
+            text = self._build_overview()
 
         event.stop_event()
-        yield await self._build_result(event, text, label)
+        document = self._build_image_document(query)
+        yield await self._build_result(event, text, document)
 
     async def _build_result(
         self,
         event: AstrMessageEvent,
         text: str,
-        label: str,
+        document: dict[str, Any],
     ):
         if self._output_mode() == "text":
             return event.plain_result(text)
+        if self.renderer is None or self.cache_dir is None:
+            return event.plain_result(text)
 
         try:
-            image_url = await self.html_render(
-                HELP_IMAGE_TEMPLATE,
-                {"content": text, "label": label},
-                options={
-                    "type": "png",
-                    "full_page": True,
-                    "animations": "disabled",
-                },
-            )
-            if not image_url:
-                raise RuntimeError("html_render returned an empty result")
-            return event.image_result(image_url)
+            image_path = await self._render_cached_image(document)
+            return event.image_result(str(image_path.absolute()))
         except Exception as exc:
             logger.warning(
-                "[custom_help] 帮助图片渲染失败，已回退为纯文本："
+                "[custom_help] 帮助图片生成失败，已回退为纯文本："
                 f"{type(exc).__name__}"
             )
             return event.plain_result(text)
+
+    async def _render_cached_image(self, document: dict[str, Any]) -> Path:
+        if self.renderer is None or self.cache_dir is None:
+            raise HelpRenderError("renderer or cache directory is unavailable")
+
+        cache_payload = {
+            "renderer": self.renderer.cache_identity(),
+            "document": document,
+        }
+        serialized = json.dumps(
+            cache_payload,
+            ensure_ascii=False,
+            sort_keys=True,
+            separators=(",", ":"),
+        )
+        digest = hashlib.sha256(serialized.encode("utf-8")).hexdigest()[:24]
+        output_path = self.cache_dir / f"help_{digest}.png"
+        if self._valid_cached_image(output_path):
+            return output_path
+
+        async with self._render_lock:
+            if self._valid_cached_image(output_path):
+                return output_path
+            await asyncio.to_thread(self.renderer.render, document, output_path)
+            if not self._valid_cached_image(output_path):
+                raise HelpRenderError("renderer did not produce a valid PNG")
+            await asyncio.to_thread(self._prune_cache, output_path)
+            return output_path
+
+    def _prune_cache(self, current_path: Path) -> None:
+        if self.cache_dir is None:
+            return
+        cached = sorted(
+            (
+                path
+                for path in self.cache_dir.glob("help_*.png")
+                if path.is_file() and path != current_path
+            ),
+            key=lambda path: path.stat().st_mtime_ns,
+            reverse=True,
+        )
+        for stale_path in cached[CACHE_FILE_LIMIT - 1 :]:
+            try:
+                stale_path.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+    @staticmethod
+    def _valid_cached_image(path: Path) -> bool:
+        try:
+            return path.is_file() and path.stat().st_size >= 128
+        except OSError:
+            return False
 
     def _build_overview(self) -> str:
         blocks = self._help_blocks()
@@ -185,6 +207,134 @@ class CustomHelpPlugin(Star):
         if block["details"]:
             parts.append("详细说明：\n" + block["details"])
         return "\n\n".join(parts)
+
+    def _build_image_document(self, query: str) -> dict[str, Any]:
+        blocks = self._help_blocks()
+        if not query:
+            visible_blocks = [
+                block
+                for block in blocks
+                if block["show_in_overview"] and block["commands"]
+            ]
+            if not visible_blocks:
+                return {
+                    "kicker": "指令总览",
+                    "title": self._config_text(
+                        "overview_title",
+                        DEFAULT_OVERVIEW_TITLE,
+                    ),
+                    "subtitle": "",
+                    "cards": [
+                        {
+                            "badge": "提示",
+                            "title": "尚未配置指令摘要",
+                            "body": DEFAULT_EMPTY_HELP,
+                            "commands": [],
+                        }
+                    ],
+                    "footer": "",
+                }
+
+            names = "、".join(block["name"] for block in blocks)
+            footer_parts = [
+                self._config_text(
+                    "overview_footer",
+                    DEFAULT_OVERVIEW_FOOTER,
+                )
+            ]
+            if names:
+                footer_parts.append(f"可用帮助块：{names}")
+            return {
+                "kicker": "指令总览",
+                "title": self._config_text(
+                    "overview_title",
+                    DEFAULT_OVERVIEW_TITLE,
+                ),
+                "subtitle": "选择一条指令开始使用",
+                "cards": [
+                    {
+                        "badge": block["name"],
+                        "title": block["title"],
+                        "summary": "",
+                        "commands": [
+                            self._command_parts(line)
+                            for line in block["commands"]
+                        ],
+                        "body": "",
+                    }
+                    for block in visible_blocks
+                ],
+                "footer": "\n".join(part for part in footer_parts if part),
+            }
+
+        block = self._find_block(blocks, query)
+        if block is None:
+            names = "、".join(item["name"] for item in blocks) or "暂无"
+            return {
+                "kicker": "帮助查询",
+                "title": "没有找到这个帮助块",
+                "subtitle": f"查询内容：{query}",
+                "cards": [
+                    {
+                        "badge": "可用帮助块",
+                        "title": names,
+                        "summary": "",
+                        "commands": [],
+                        "body": "请检查名称或别名后重试。",
+                    }
+                ],
+                "footer": "发送 /help 查看全部指令。",
+            }
+
+        cards = []
+        if block["commands"]:
+            cards.append(
+                {
+                    "badge": block["name"],
+                    "title": "指令列表",
+                    "summary": "",
+                    "commands": [
+                        self._command_parts(line)
+                        for line in block["commands"]
+                    ],
+                    "body": "",
+                }
+            )
+        if block["details"]:
+            cards.append(
+                {
+                    "badge": "详细说明",
+                    "title": "使用方法与注意事项",
+                    "summary": "",
+                    "commands": [],
+                    "body": block["details"],
+                }
+            )
+        if not cards:
+            cards.append(
+                {
+                    "badge": block["name"],
+                    "title": "暂无更多说明",
+                    "summary": "",
+                    "commands": [],
+                    "body": "请在插件配置中补充指令摘要或详细说明。",
+                }
+            )
+        return {
+            "kicker": "详细帮助",
+            "title": block["title"],
+            "subtitle": block["summary"],
+            "cards": cards,
+            "footer": "发送 /help 返回全部指令。",
+        }
+
+    @staticmethod
+    def _command_parts(line: str) -> dict[str, str]:
+        parts = re.split(r"\s+[—–-]\s+", line, maxsplit=1)
+        return {
+            "command": parts[0].strip(),
+            "description": parts[1].strip() if len(parts) == 2 else "",
+        }
 
     def _help_blocks(self) -> list[dict[str, Any]]:
         raw_blocks = self.config.get("help_blocks", [])
