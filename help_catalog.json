@@ -1,0 +1,194 @@
+{
+  "plugins": [
+    {
+      "id": "astrbot_plugin_taiko_rp",
+      "directory": "astrbot_plugin_rp_taikover-master",
+      "title": "太鼓 · 今日人品",
+      "version": "0.7.3",
+      "summary": "每日 RP、历史统计与本群排行榜。",
+      "body": "/rp：抽取或查看今日人品，同一用户同一天结果相同。\n/rp 积分：查看本人当前积分，不重新抽签。\n/rp 统计：最近 30 条 RP 曲线及历史等级统计。\n/rp 历史 7：查看最近 7 条记录；也可填写日期，例如 /rp 历史 2026-08-01。\n/rp 排行榜 20：查看本群今日前 20 名。\n/rp help：查看完整帮助。\n签到积分以门禁积分插件的实际设置为准；历史和排行榜不会补抽缺失日期。管理员可使用 /rp 存储 查看占用，/rp 清理 天数 清理旧数据。",
+      "default_enabled": true,
+      "aliases": ["taiko_rp", "astrbot_plugin_rp_taikover"]
+    },
+    {
+      "id": "rt_link",
+      "directory": "astrbot_plugin_rt_link",
+      "title": "RTLink · 太鼓成绩",
+      "version": "v0.22.0",
+      "summary": "成绩同步、Rating 画像、练习建议与段位查询。",
+      "body": "先私聊绑定：/rtlink bind <apikey> <player_id> [server]，或 /rtlink bind sakura <token>。请勿在群聊发送密钥。\n/rtlink：刷新成绩并生成个人画像；/rtlink profile：读取有效缓存画像。\n/rtlink source：查看来源；后加 kinoko 或 sakura 切换；/rtlink unbind：解绑当前来源。\n/rtlink score 鬼夏祭：查询指定曲目成绩。\n/rtlink rating：实力画像；/rtlink progress：配置评分与历史曲线。\n/rtlink weakness：弱项和练习建议；/rtlink improve 紫雅 鬼：评价提升建议。\n/rtlink dan 2025 十段：段位课题曲与条件。\n/rtlink alias <ID或曲名> <别名>：申请歌曲别名。\n/rtlink update：强制同步；/rtlink help：完整帮助；/rtlink about：插件信息。",
+      "default_enabled": true,
+      "aliases": ["astrbot_plugin_rt_link"]
+    },
+    {
+      "id": "astrbot_plugin_liuyao",
+      "directory": "astrbot_plugin_liuyao",
+      "title": "六爻起卦",
+      "version": "0.33.2",
+      "summary": "六爻排盘、AI 解读、额度查询和卦例反馈。",
+      "body": "/六爻：查看帮助。\n/六爻 这个项目能否按期完成：围绕具体事情起卦；也可用 /起卦 六爻 问题。\n/额度：查看今日余量、有效反馈与恢复时间。\n/六爻反馈：查看待反馈卦例；/六爻反馈 列表 2：翻页。\n/六爻反馈 1：回看指定编号；/六爻反馈 1 项目已经按期交付：提交实际结果。仅一条待反馈时可省略编号。\n/ping：检测当前模型，会发送一次模型请求，不扣起卦额度。\n空泛或不成立的问题不调用 AI 解卦；有效解读成功后才计入每日或赠送额度。\n群主、群管理员或 AstrBot 管理员可用 /六爻 开、/六爻 关 设置本群；/六爻test 问题 仅限 AstrBot 管理员诊断。",
+      "default_enabled": true,
+      "aliases": []
+    },
+    {
+      "id": "wuxing_num",
+      "directory": "astrbot_plugin_wuxing_num",
+      "title": "五行数字卦",
+      "version": "v1.7.0",
+      "summary": "提供具体问题和五个数字，生成五行数字卦图。",
+      "body": "/数字卦 13254 这次求职能否成功\n也可使用：/数字卦 这次求职能否成功 | 1 3 2 5 4\n手动根气：/数字卦 合同能否顺利签下 | 13254 | 金\n请提供真实、具体的问题与恰好五个数字；只有数字不会起卦。省略根气时由 AI 根据问题选择根气，排盘和解卦由程序完成。\nAI 取根气按本群配置限次；明确手动填写水、火、木、金、土之一时不调用 AI。\n同一用户同一问题连续三次死卦后停止继续问该事项；数字卦与六爻的记录和额度相互独立。",
+      "default_enabled": true,
+      "aliases": ["astrbot_plugin_wuxing_num"]
+    },
+    {
+      "id": "astrbot_plugin_ziwei",
+      "directory": "astrbot_plugin_ziwei",
+      "title": "紫微斗数排盘",
+      "version": "2.3.3",
+      "summary": "本命盘、个人绑定、流年大运和人生图谱。",
+      "body": "/紫薇：查看图片帮助；/紫薇帮助文字：完整文字帮助。\n/紫微 199006150830 男：按出生年月日时分排盘（虚构示例，请换成自己的资料）。\n/紫微 农历 199005230830 男：农历排盘。\n/紫微 绑定 199006150830 男：绑定本命盘；/我的命盘：查看。\n/紫微 流年 2026：绑定命盘的流年；/紫微 大运 2：第 2 大运。\n/紫微 换绑 199207201430 女：重新填写资料换绑；/紫微 解绑：解除绑定。\n/人生：用已绑定命盘生成图谱，也可另填出生资料。\n常用选项：主题=白天、主题=夜间、文字；完整用法见插件帮助。\n须在已开启的群内使用；群主、群管理员或 AstrBot 管理员可用 /紫微 开启、/紫微 关闭，/紫微 状态 查看开关。当前版本不提供 AI 看盘。",
+      "default_enabled": true,
+      "aliases": []
+    },
+    {
+      "id": "astrbot_plugin_ganzhi",
+      "directory": "astrbot_plugin_ganzhi",
+      "title": "干支纪时",
+      "version": "0.3.0",
+      "summary": "当前四柱、个人日运、生日绑定与群日报。",
+      "body": "/干支：查看当前四柱图片；已绑定时附个人日运与时辰宜忌。\n/干支 辛巳：临时按日柱查看；也可填写单个日主，如 /干支 辛。\n/干支 20010319：临时按阳历生日查看（虚构示例）。\n/干支 绑定 20010319：绑定阳历生日；/干支 绑定 辛巳：直接绑定日柱。\n/干支 我的：查看绑定信息；/干支 解绑：删除绑定。\n/干支 help：完整帮助。\n/干支日报 状态：查看本群日报；群主、群管理员或 AstrBot 管理员可用 /干支日报 开、/干支日报 关 设置订阅。\n生日只接受阳历；临时查询不覆盖绑定。",
+      "default_enabled": true,
+      "aliases": []
+    },
+    {
+      "id": "astrbot_plugin_img_gener",
+      "directory": "astrbot_plugin_img_gener",
+      "title": "AI 生图与动图",
+      "version": "0.3.3",
+      "summary": "文字生图、GIF、人物参考图和永久图库。",
+      "body": "/生图 雨后的车站，温暖插画风：生成静态图片；也可用 /绘图、/draw。\n/生动图 一只眨眼的小猫：生成 GIF 动图。\n/生图人物：查看可用人物；/生图参考图：查看自己的本体参考图。\n/生图参考图 设置：同时发送或引用恰好一张图片，替换自己的参考图。\n/生图状态：查看队列、进度、最近结果、余量与冷却。\n/生图历史：查看图库说明；/生图历史 123：按编号查看；/生图历史 随机 4：随机拼图。\n/画廊：本人最近图片；/画廊 10：最近 10 张；/画廊 -5：从最近第 5 张开始。\n/画廊 [123 151 488]：按编号和顺序拼图，方括号须保留。\n任务受理后在后台生成，请按任务号查看结果。参考历史图片时请回复或引用对应图片消息。管理员可在生图管理页配置参数、管理图库与参考图。",
+      "default_enabled": true,
+      "aliases": []
+    },
+    {
+      "id": "astrbot_plugin_think_bubble",
+      "directory": "astrbot_plugin_think_bubble",
+      "title": "思考气泡",
+      "version": "1.2.0",
+      "summary": "把指定文字排进普通或可可子思考气泡。",
+      "body": "/think 今天也要好好打鼓！：生成普通思考气泡。\n/可可子思考 我在想今天先练哪首歌：生成可可子思考气泡。\n普通模板别名：/想法、/t。\n可可子模板别名：/可可子think、/可可子t、/kkzt、/kt。\n指令后填写要展示的文字，程序自动换行并调整字号。",
+      "default_enabled": true,
+      "aliases": []
+    },
+    {
+      "id": "astrbot_plugin_feed",
+      "directory": "astrbot_plugin_feed",
+      "title": "投喂与赞助",
+      "version": "0.3.0",
+      "summary": "发送可可子的投喂赞助卡片。",
+      "body": "/投喂：查看赞助卡片。\n管理员可在插件的赞助设置页面修改标题、二维码、角色图及整张底图，裁切图片、预览效果或恢复默认。",
+      "default_enabled": true,
+      "aliases": []
+    },
+    {
+      "id": "astrbot_plugin_welcome_qqgroup",
+      "directory": "astrbot_plugin_welcome_qqgroup",
+      "title": "QQ 群入群欢迎",
+      "version": "v1.4.0",
+      "summary": "新成员入群时自动发送图文欢迎。",
+      "body": "新人加入群聊后自动发送欢迎图片与文字，普通成员无需手动触发。\n以下操作限群主、群管理员或 AstrBot 管理员：\n/welcome on：开启本群欢迎；/welcome off：关闭。\n/welcome set 欢迎 {nickname} 加入我们！：设置本群专属欢迎词。\n/welcome test：预览当前群的欢迎消息。\n也支持中文子命令 开、关、设置、测试。欢迎词可使用 {nickname}、{user_id}、{group_id}；管理员可在插件设置中配置图片和全局默认欢迎词。",
+      "default_enabled": true,
+      "aliases": ["astrbot_plugin_junjunget"]
+    },
+    {
+      "id": "astrbot_plugin_access_gate",
+      "directory": "astrbot_plugin_access_gate",
+      "title": "门禁与积分",
+      "version": "2.4.0",
+      "summary": "群聊访问、唤醒规则、积分与聊天预算管理。",
+      "body": "/积分：查看本人当前积分；/rp 积分 查询同一账本。\n/rp 可按当前配置领取签到积分；戳一戳机器人可按配置获得随机积分。是否发奖、奖励次数和金额以实际设置为准。\n个人积分模式按个人余额及预算控制聊天；全局积分模式共享日月预算，不扣个人积分，也不发 RP 签到积分。\n群白名单、开放时段与唤醒规则由管理员设置。帮助中的功能仍须符合对应插件权限和额度。\nAstrBot 管理员：/accessgate status 查看状态；/accessgate help 查看管理用法；积分与预算、流水可在插件管理页编辑和查询。",
+      "default_enabled": true,
+      "aliases": []
+    },
+    {
+      "id": "astrbot_plugin_wallet_balance",
+      "directory": "astrbot_plugin_wallet_balance",
+      "title": "API 钱包余额",
+      "version": "0.2.1",
+      "summary": "管理员查询 API 钱包与群 Token 消耗。",
+      "body": "以下查询限 AstrBot 管理员，普通群管理员不具备该权限。\n/余额：查询已配置 API 账户的钱包余额，默认返回角色气泡图片；兼容 /钱包余额、/余额查询、/wallet。\n/群消耗汇总：今日、累计总计与各群列表。\n/群消耗汇总 今日：今日用量；/群消耗汇总 累计：累计用量。\n/群消耗汇总 2026-10-29：指定北京日期；/群消耗汇总 今日 2：第 2 页。\n费用按可识别的实际 Token 与插件价表估算；未返回的用量会标为未知，估算不等同于服务商账单。",
+      "default_enabled": true,
+      "aliases": []
+    },
+    {
+      "id": "astrbot_plugin_githook",
+      "directory": "astrbot_plugin_githook",
+      "title": "插件更新动态",
+      "version": "0.3.0",
+      "summary": "查询插件安装信息、提交历史及群更新推送。",
+      "body": "/githook 列表：查看已发现插件及推送开关。\n/githook 六爻：查询指定插件的安装或登记信息。\n/githook 历史：全部受管插件最近 30 条提交。\n/githook 历史 六爻：指定插件提交；后加 页 2 翻页，也可加 61-90 指定范围。\n/githook 历史 六爻 2026-09-20：查询某日提交。\n/githook 状态：本群推送状态；/githook 帮助：完整帮助。\n只有 AstrBot 管理员可用 /githook 开、/githook 关 设置本群推送；仓库推送也需在配置中单独开启。普通用户可主动查询，推送不会自动升级插件。",
+      "default_enabled": true,
+      "aliases": []
+    },
+    {
+      "id": "astrbot_plugin_custom_help",
+      "directory": "astrbot_plugin_custom_help",
+      "title": "本群帮助",
+      "version": "2.0.0",
+      "summary": "查看本群已选择的插件说明。",
+      "body": "/help 或 /帮助：查看本群帮助图，包含管理员为当前群选择的插件说明。\n管理员可在自定义帮助的管理页面选择群聊，勾选展示的插件、编辑说明和表头清单、调整拼接顺序并预览。\n帮助展示开关只决定本图包含哪些说明；插件本身的启用、群授权、额度和权限仍由各插件管理。",
+      "default_enabled": true,
+      "aliases": []
+    },
+    {
+      "id": "astrbot_plugin_usage_stats",
+      "directory": "astrbot_plugin_usage_stats",
+      "title": "使用统计",
+      "version": "0.2.0",
+      "summary": "个人指令和 Token 用量，以及本群排行榜。",
+      "body": "/使用统计：本人累计指令次数、模型调用、Token 与常用时段。\n/使用统计 指令 1：按指令查看第 1 页；/使用统计 模型 1：按模型查看明细。\n/使用排行：本群累计指令次数排行及自己的名次。\n/token：本人累计及今日 Token、调用次数和统计开始时间。\n/token排行：本群累计已知 Token 排行及自己的名次。\n个人汇总覆盖同一机器人下自己的群聊与私聊；群榜仅统计当前群。数据从插件启用后累计，缺失用量不会被当成零。",
+      "default_enabled": false,
+      "aliases": []
+    },
+    {
+      "id": "astrbot_plugin_persona_manager",
+      "directory": "astrbot_plugin_persona_manager",
+      "title": "可可子人格管理",
+      "version": "0.4.0",
+      "summary": "管理员配置群内表达学习、互动记忆与核心人格。",
+      "body": "此插件没有独立聊天指令，在管理员明确开启的 QQ 群中学习表达并积累互动记忆。\n管理员在 AstrBot 的人格管理页面选择群聊，分别开启旁听学梗、互动记忆或允许使用全局梗，并设置预算、学习模型和方向。\n页面可编辑核心人格，查看与纠正人物记忆和时间线，停用群表达或回滚。新发现的群默认不学习；私聊不采集、不检索、不学习。",
+      "default_enabled": false,
+      "aliases": []
+    },
+    {
+      "id": "astrbot_plugin_astro_oracle",
+      "directory": "astrbot_plugin_astro_oracle",
+      "title": "星轨神谕 · 星图",
+      "version": "0.1.5",
+      "summary": "根据时间与地点生成真实天体双半球星图。",
+      "body": "/星图：当前时刻、默认北京的星图。\n/星图 北京 20250102：指定地点和公历日期；/星图 200010100100：指定年月日时分。\n/星图 30.25°N 120.5°E：指定经纬度，也可使用 纬度,经度。\n/星图 help：查看完整帮助；别名为 /xingtu、/xt、/star。\n未填写时间时使用当前时刻；仅日期时，缺失时分秒默认补为 08:00:00，可由管理员配置。\n/紫薇星图 北京 20261012200000：真实天球与传统十二宫的研究对照图；也支持 /紫微星图。该对照不是紫微斗数插件的个人命盘。",
+      "default_enabled": false,
+      "aliases": []
+    },
+    {
+      "id": "astrbot_plugin_grok_uuapi",
+      "directory": "astrbot_plugin_grok_uuapi",
+      "title": "Grok AI 助手",
+      "version": "1.0.0",
+      "summary": "Grok 生图、视频、联网对话及额度查询。",
+      "body": "/grok生图 一只戴宇航头盔的橘猫：生成图片；附带或引用图片时可进行图生图。\n/grok生图 4 3:2 日落海滩：指定数量与尺寸。\n/grok视频 10 夜晚海边的慢镜头：生成视频，可附带参考图片。\n/grok 今天的 AI 新闻有哪些：与 Grok 对话。\n/grok额度：查看额度、冷却和并发；/grok模型：查看可见模型；/grok帮助：完整说明。\n生成任务受理后在后台处理；权限、白名单、可用模型和限额以管理员配置为准，默认仅管理员可用。\nAstrBot 管理员可用 /grok重置 <QQ号或群号> 重置指定额度，all 表示全部。",
+      "default_enabled": false,
+      "aliases": ["astrbot_plugin_grok"]
+    },
+    {
+      "id": "astrbot_plugin_analysis",
+      "directory": "astrbot_plugin_analysis",
+      "title": "调用汇总分析",
+      "version": "1.1.0",
+      "summary": "管理员汇总机器人调用，生成报告与群聊复盘。",
+      "body": "管理员指令：\n/analysis report 最近7天 当前 pdf：生成当前群调用汇总报告。\n/analysis digest 最近3天 当前 bug,报错 txt：围绕关注点精读群聊并复盘。\n/analysis groups：查看记录过的群；/analysis status：查看记录与存储状态。\n/analysis export 最近7天 当前：导出原始 JSONL 记录，不调用模型。\n/analysis record on、off、reset：临时恢复、暂停或重置本群记录策略。\n/analysis help：完整说明；主指令别名为 /汇总、/调用汇总。\n报告支持 word、pdf、md、txt；省略群范围会选择全部已记录群，请按实际需要指定 当前 或群号。",
+      "default_enabled": false,
+      "aliases": []
+    }
+  ]
+}

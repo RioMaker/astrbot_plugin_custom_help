@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>群聊帮助工作台</title>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="page-header">
+        <div class="brand"><span class="brand-icon" aria-hidden="true">?</span><div><p class="eyebrow">CUSTOM HELP</p><h1>群聊帮助工作台</h1></div></div>
+        <div class="header-actions"><span id="save-state" class="save-state">正在连接…</span><button id="save" class="button primary" disabled>保存全部修改</button></div>
+      </header>
+      <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+      <div id="recovery" class="recovery" hidden><span>本页草稿仍然保留。可先导出，再重新载入服务器配置。</span><button id="export-draft" class="button small">导出草稿</button><button id="reload" class="button small">放弃草稿并重新载入</button></div>
+      <main id="workspace" class="workspace" hidden>
+        <aside class="panel group-panel">
+          <div class="panel-heading"><h2>配置范围</h2><span id="group-count" class="badge">0 个群</span></div>
+          <button id="default-scope" class="scope-button active"><span class="scope-icon" aria-hidden="true">✦</span><span><strong>默认模板</strong><small>新群与未单独配置的群</small></span></button>
+          <div class="group-heading"><span>我的群聊</span><button id="discover" class="text-button">刷新群聊</button></div>
+          <label class="search"><span class="sr-only">搜索群名、群号或平台</span><input id="group-search" type="search" placeholder="搜索群名 / 群号" autocomplete="off" /></label>
+          <nav id="groups" class="group-list" aria-label="选择群聊"></nav>
+          <p class="aside-note">自动发现机器人所在的群聊，也会记录收到消息的群。新群默认使用默认模板。</p>
+          <div id="discovery-errors" class="discovery-errors" hidden></div>
+        </aside>
+        <section class="editor-column">
+          <div class="panel scope-panel"><div><p class="eyebrow">正在编辑</p><h2 id="scope-title">默认模板</h2><p id="scope-description" class="muted"></p></div><div id="scope-actions" class="scope-actions"></div></div>
+          <div id="inherit-note" class="inherit-note" hidden>本群正在使用默认模板。点击“为本群单独配置”后，即可独立选择插件、编辑文字和调整顺序。</div>
+          <fieldset id="editor-fields">
+            <details class="panel header-editor" open>
+              <summary><span><span class="section-number">01</span>表头与插件帮助清单</span><span class="summary-hint">可编辑</span></summary>
+              <div class="header-fields">
+                <label>帮助图标题<input id="field-title" maxlength="120" /></label>
+                <label>开场说明<textarea id="field-intro" rows="2" maxlength="3000" placeholder="例如：欢迎使用可可子，以下是本群开放的插件帮助。"></textarea></label>
+                <label>清单标题<input id="field-list_title" maxlength="120" placeholder="插件帮助清单" /></label>
+                <label>清单说明<textarea id="field-list_text" rows="3" maxlength="3000"></textarea><small><code>{plugins}</code> 会替换为已勾选插件的名称，顺序与下方一致；未填写此占位符时，仍会自动附加清单。</small></label>
+                <label>页尾文字<textarea id="field-footer" rows="2" maxlength="1000" placeholder="可填写使用提示或联系说明"></textarea></label>
+              </div>
+            </details>
+            <section class="panel plugins-panel">
+              <div class="panel-heading plugin-heading"><h2><span class="section-number">02</span>插件说明与拼接顺序</h2><span id="enabled-count" class="badge accent"></span></div>
+              <p class="section-description">勾选需要展示的插件，使用箭头调整顺序。点击“编辑说明”修改文字；这里的开关只控制帮助图中的展示。</p>
+              <div id="plugin-list" class="plugin-list"></div>
+            </section>
+          </fieldset>
+        </section>
+        <aside class="panel preview-panel">
+          <div class="panel-heading"><h2>帮助图预览</h2><span class="badge">/help</span></div>
+          <p class="section-description">使用当前页面草稿生成，与群内回复使用同一套图片渲染。</p>
+          <button id="preview" class="button secondary full-width">生成预览</button>
+          <p id="preview-state" class="preview-state" role="status" aria-live="polite">修改后可先预览，保存后对群聊生效。</p>
+          <div id="preview-images" class="preview-images"><div class="preview-placeholder"><span aria-hidden="true">▤</span><strong>你的帮助图会显示在这里</strong><p>表头、插件清单与说明<br />按当前顺序拼接</p></div></div>
+        </aside>
+      </main>
+      <div id="loading" class="loading"><span class="spinner"></span><p>正在载入群聊与帮助模板…</p></div>
+      <footer class="page-footer">自定义帮助 · 内容与顺序由你决定</footer>
+    </div>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
