@@ -66,6 +66,7 @@ function markDirty() {
   dirty = true;
   invalidatePreview();
   updateCounts();
+  renderStyleLabels();
   updateActions();
 }
 
@@ -163,12 +164,16 @@ function renderPlugins() {
     checkbox.type = "checkbox";
     checkbox.checked = item.enabled;
     const title = element("span", "plugin-name", item.title || item.id);
+    const names = element("span", "plugin-names");
+    const styleBadge = element("small", "style-badge");
+    styleBadge.dataset.styleId = item.id;
+    names.append(title, styleBadge);
     checkbox.addEventListener("change", () => {
       item.enabled = checkbox.checked;
       card.classList.toggle("enabled", item.enabled);
       markDirty();
     });
-    toggle.append(checkbox, title);
+    toggle.append(checkbox, names);
     const moves = element("div", "plugin-move");
     for (const [delta, text, label, className] of [[-1, "↑", "上移", "move-up"], [1, "↓", "下移", "move-down"]]) {
       const button = element("button", `icon-button ${className}`, text);
@@ -194,6 +199,9 @@ function renderPlugins() {
       edit.setAttribute("aria-expanded", String(!editor.hidden));
     });
     editor.append(element("p", "plugin-id", item.id));
+    const source = element("p", "style-source");
+    source.dataset.sourceId = item.id;
+    editor.append(source);
     if (catalog.get(item.id)?.summary) editor.append(element("p", "plugin-description", catalog.get(item.id).summary));
     const titleLabel = element("label", "", "插件名称（同时用于表头清单）");
     const titleInput = element("input");
@@ -221,6 +229,24 @@ function renderPlugins() {
     card.append(toolbar, editor);
     list.append(card);
   });
+  renderStyleLabels();
+}
+
+function renderStyleLabels() {
+  const styles = state.styles || {};
+  document.querySelectorAll("[data-style-id]").forEach((node) => {
+    const style = styles[node.dataset.styleId];
+    node.textContent = style ? `风格：${style.label}${style.status === "fallback" ? "（原风格暂不可用）" : ""}` : "风格：科技风";
+    node.classList.toggle("fallback", style?.status === "fallback");
+    node.title = style?.note || "";
+  });
+  document.querySelectorAll("[data-source-id]").forEach((node) => {
+    const style = styles[node.dataset.sourceId];
+    node.textContent = style ? `${style.note} 来源：${style.source}` : "未提供专用帮助样式，使用科技风。";
+  });
+  const missing = profile().items.filter((item) => item.enabled && styles[item.id]?.status === "fallback");
+  $("style-warning").hidden = !missing.length;
+  $("style-warning").textContent = missing.length ? `${missing.map((item) => item.title).join("、")}的原生样式暂不可用，本次使用科技风。请检查原插件是否安装完整，再重新预览。` : "";
 }
 
 function placeholder() {
@@ -317,6 +343,10 @@ async function preview() {
   try {
     const result = await bridge.apiPost("preview", { profile: clone(profile()), group_name: scope });
     if (generation !== previewGeneration) return;
+    if (result.styles) {
+      state.styles = result.styles;
+      renderStyleLabels();
+    }
     if (!Array.isArray(result.images) || !result.images.length || !result.images.every((url) => typeof url === "string" && /^data:image\/png;base64,/.test(url))) throw new Error("未收到有效的预览图片。");
     const images = $("preview-images");
     images.replaceChildren();
@@ -326,7 +356,16 @@ async function preview() {
       const image = element("img");
       image.src = url;
       image.alt = `${scope}的帮助图，第 ${index + 1} / ${result.images.length} 张`;
-      wrapper.append(image);
+      const zoom = element("button", "preview-zoom");
+      zoom.type = "button";
+      zoom.setAttribute("aria-label", `放大查看第 ${index + 1} 张帮助图`);
+      zoom.addEventListener("click", () => {
+        $("large-preview").src = url;
+        $("large-preview").alt = image.alt;
+        $("image-viewer").showModal();
+      });
+      zoom.append(image);
+      wrapper.append(zoom);
       if (result.images.length > 1) wrapper.append(element("p", "preview-image-caption", `第 ${index + 1} / ${result.images.length} 张`));
       images.append(wrapper);
     });
@@ -370,6 +409,7 @@ $("discover").addEventListener("click", discover);
 $("preview").addEventListener("click", preview);
 $("reload").addEventListener("click", load);
 $("export-draft").addEventListener("click", exportDraft);
+$("close-viewer").addEventListener("click", () => $("image-viewer").close());
 window.addEventListener("beforeunload", (event) => {
   if (dirty) {
     event.preventDefault();

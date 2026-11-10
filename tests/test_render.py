@@ -64,7 +64,7 @@ def test_long_instructions_paginate_with_no_oversized_images(service):
 
 def test_cjk_and_unbroken_commands_wrap_within_available_width():
     renderer = load_module("help_render")
-    font = ImageFont.truetype(str(renderer.FONT_PATH), 27)
+    font = ImageFont.truetype(str(load_module("help_styles").FONT_PATH), 27)
     text = "超长中文帮助说明" * 30 + "/" + "long_unbroken_command" * 30
     lines = list(renderer._wrap(text, font, 250))
     assert len(lines) > 5

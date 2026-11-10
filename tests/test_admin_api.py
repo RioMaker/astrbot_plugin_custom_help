@@ -40,7 +40,9 @@ def admin(service):
         ),
         discovery_errors=[],
         discover_groups=AsyncMock(),
-        render_images=AsyncMock(return_value=[b"png-image-bytes"]),
+        render_images=AsyncMock(return_value=([b"png-image-bytes"], {})),
+        read_styles=AsyncMock(return_value={}),
+        page_state=AsyncMock(return_value=service.snapshot()),
         log_failure=Mock(),
     )
     return module.AdminAPI(plugin, web)
@@ -76,7 +78,9 @@ def test_preview_renders_draft_without_saving_and_returns_png_data_url(admin):
         {"profile": draft, "group_name": "预览群"}
     ).encode()
     result = asyncio.run(admin.guard(admin.preview)())
-    admin.plugin.render_images.assert_awaited_once_with(draft, "预览群")
+    admin.plugin.render_images.assert_awaited_once_with(
+        draft, "预览群", with_styles=True
+    )
     assert result["data"]["images"] == [
         "data:image/png;base64," + base64.b64encode(b"png-image-bytes").decode()
     ]

@@ -77,10 +77,7 @@ class AdminAPI:
         return value
 
     async def state(self):
-        return {
-            **self.plugin.service.snapshot(),
-            "discovery_errors": self.plugin.discovery_errors,
-        }
+        return await self.plugin.page_state()
 
     async def discover(self):
         await self.plugin.discover_groups()
@@ -90,7 +87,12 @@ class AdminAPI:
         import asyncio
 
         result = await asyncio.to_thread(self.plugin.service.save, await self.payload())
-        return {**result, "discovery_errors": self.plugin.discovery_errors}
+        styles = await self.plugin.read_styles()
+        return {
+            **result,
+            "discovery_errors": self.plugin.discovery_errors,
+            "styles": {name: style.public() for name, style in styles.items()},
+        }
 
     async def preview(self):
         import base64
@@ -100,10 +102,13 @@ class AdminAPI:
         name = payload.get("group_name", "")
         if not isinstance(name, str) or len(name) > 200:
             raise HelpError("群名称格式不合法。")
-        images = await self.plugin.render_images(profile, name)
+        images, styles = await self.plugin.render_images(
+            profile, name, with_styles=True
+        )
         return {
             "images": [
                 "data:image/png;base64," + base64.b64encode(image).decode("ascii")
                 for image in images
-            ]
+            ],
+            "styles": styles,
         }

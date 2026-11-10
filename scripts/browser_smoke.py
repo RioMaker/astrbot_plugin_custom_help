@@ -18,6 +18,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 from help_render import render_help
 from help_service import HelpService
+from help_styles import StyleReader
 
 
 def run(output: Path):
@@ -26,13 +27,27 @@ def run(output: Path):
         service = HelpService(Path(data), ROOT / "help_catalog.json")
         service.observe_group("qq-main", "10001", "太鼓交流一群")
         service.observe_group("qq-main", "10002", "可可子的朋友们")
+        style_reader = StyleReader()
+
+        def styles():
+            return style_reader.load(service.catalog)
+
+        def snapshot():
+            return {
+                **service.snapshot(),
+                "styles": {name: style.public() for name, style in styles().items()},
+            }
 
         def rpc(endpoint, payload):
             if endpoint == "save":
-                return service.save(payload)
+                service.save(payload)
+                return snapshot()
             if endpoint == "preview":
+                native_styles = styles()
                 images = render_help(
-                    service.validate_profile(payload["profile"]), payload["group_name"]
+                    service.validate_profile(payload["profile"]),
+                    payload["group_name"],
+                    native_styles,
                 )
                 for n, image in enumerate(images, 1):
                     (output / f"help-preview-{n}.png").write_bytes(image)
@@ -40,11 +55,14 @@ def run(output: Path):
                     "images": [
                         "data:image/png;base64," + base64.b64encode(i).decode()
                         for i in images
-                    ]
+                    ],
+                    "styles": {
+                        name: style.public() for name, style in native_styles.items()
+                    },
                 }
             if endpoint == "discover":
                 service.observe_group("qq-main", "10003", "新发现的群")
-            return service.snapshot()
+            return snapshot()
 
         server = ThreadingHTTPServer(
             ("127.0.0.1", 0),
@@ -70,6 +88,18 @@ def run(output: Path):
                 page.locator("#workspace").wait_for(state="visible")
                 assert page.locator(".plugin-card").count() == 19
                 assert page.locator(".plugin-toggle input:checked").count() == 14
+                assert (
+                    "竹影青玉"
+                    in page.locator(
+                        '[data-style-id="astrbot_plugin_liuyao"]'
+                    ).inner_text()
+                )
+                assert (
+                    "星空"
+                    in page.locator(
+                        '[data-style-id="astrbot_plugin_ziwei"]'
+                    ).inner_text()
+                )
                 page.locator("#groups button").first.click()
                 assert page.locator("#field-title").is_disabled()
                 page.locator("#scope-actions button").click()
@@ -81,12 +111,20 @@ def run(output: Path):
                     "/rp：查看今日人品。\n这段说明仅用于本群。"
                 )
                 page.locator(".move-down").first.click()
-                page.locator(".plugin-toggle input").nth(2).uncheck()
+                page.locator(".plugin-toggle input").nth(5).uncheck()
                 page.locator("#preview").click()
                 page.locator("#preview-images img").first.wait_for(
                     state="visible", timeout=60000
                 )
                 assert "未保存草稿" in page.locator("#preview-state").inner_text()
+                page.locator(".preview-zoom").first.click()
+                assert page.locator("#image-viewer").is_visible()
+                assert (
+                    page.locator("#large-preview")
+                    .get_attribute("src")
+                    .startswith("data:image/png;base64,")
+                )
+                page.locator("#close-viewer").click()
                 page.evaluate("window.scrollTo(0, 0)")
                 page.screenshot(path=str(output / "editor-overview.png"))
                 page.screenshot(path=str(output / "editor-desktop.png"), full_page=True)
@@ -97,7 +135,7 @@ def run(output: Path):
                 first = service.profile_for("qq-main", "10001")
                 assert first["title"] == "太鼓一群 · 专属帮助"
                 assert first["items"][0]["id"] == "rt_link"
-                assert not first["items"][2]["enabled"]
+                assert not first["items"][5]["enabled"]
                 assert (
                     service.profile_for("qq-main", "10002")["title"] != first["title"]
                 )

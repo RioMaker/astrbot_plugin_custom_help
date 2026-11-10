@@ -284,7 +284,7 @@ def test_failed_discovery_keeps_existing_groups_and_does_not_expose_error_detail
 def test_render_cache_changes_when_description_changes(plugin_module, monkeypatch):
     plugin = plugin_module.CustomHelpPlugin(context_with_platforms(), {})
     renderer = Mock(
-        side_effect=lambda profile, name: [profile["items"][0]["body"].encode()]
+        side_effect=lambda profile, name, styles: [profile["items"][0]["body"].encode()]
     )
     monkeypatch.setattr(plugin_module, "render_help", renderer)
     profile = plugin.service.snapshot()["default_profile"]
@@ -316,3 +316,55 @@ def test_lifecycle_registers_page_and_cancels_discovery_on_unload(plugin_module)
     assert plugin.closed
     assert context.registered_web_apis == []
     assert not plugin.cache
+
+
+def test_native_style_change_invalidates_chat_and_preview_cache(
+    plugin_module, monkeypatch
+):
+    style_module = load_module("help_styles")
+    plugin = plugin_module.CustomHelpPlugin(context_with_platforms(), {})
+    active_style = style_module.HelpStyle(fingerprint="original-native-style")
+    plugin.read_styles = AsyncMock(
+        return_value={"first": active_style, "second": style_module.HelpStyle()}
+    )
+    renderer_mock = Mock(
+        side_effect=lambda profile, name, styles: [styles["first"].fingerprint.encode()]
+    )
+    monkeypatch.setattr(plugin_module, "render_help", renderer_mock)
+    profile = plugin.service.snapshot()["default_profile"]
+
+    async def run():
+        first = await plugin.render_images(profile, "群")
+        images, info = await plugin.render_images(profile, "群", with_styles=True)
+        assert images == first
+        assert info["first"]["label"] == active_style.label
+        active_style.fingerprint = "updated-native-style"
+        second = await plugin.render_images(profile, "群")
+        assert second != first
+
+    asyncio.run(run())
+    assert renderer_mock.call_count == 2
+
+
+def test_runtime_style_discovery_prefers_actual_loaded_instance_paths(
+    plugin_module, monkeypatch, tmp_path
+):
+    style_module = load_module("help_styles")
+    fake_module = types.ModuleType("loaded_ziwei_plugin")
+    fake_module.__file__ = str(tmp_path / "renamed-install" / "main.py")
+    monkeypatch.setitem(sys.modules, "loaded_ziwei_plugin", fake_module)
+    instance_class = type("ZiweiPlugin", (), {"__module__": "loaded_ziwei_plugin"})
+    instance = instance_class()
+    instance.config = {"image_theme": "day"}
+    instance.help_renderer = types.SimpleNamespace(font_path="installed-font.otf")
+    context = types.SimpleNamespace(
+        get_all_stars=lambda: [
+            types.SimpleNamespace(name="astrbot_plugin_ziwei", star_cls=instance)
+        ]
+    )
+    paths, options = style_module.runtime_sources(context)
+    assert paths["astrbot_plugin_ziwei"] == (tmp_path / "renamed-install").resolve()
+    assert options["astrbot_plugin_ziwei"] == {
+        "theme": "day",
+        "font_path": "installed-font.otf",
+    }

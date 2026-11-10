@@ -17,9 +17,10 @@ from astrbot.api.star import Context, Star, StarTools, register
 from .admin_api import AdminAPI
 from .help_render import format_text, render_help
 from .help_service import HelpService
+from .help_styles import StyleReader, runtime_sources
 
 PLUGIN_NAME = "astrbot_plugin_custom_help"
-PLUGIN_VERSION = "2.0.0"
+PLUGIN_VERSION = "2.1.0"
 HELP_PRIORITY = 1000
 DEFAULT_HELP_TEXT = (
     "这里是自定义帮助信息。\n\n请在 AstrBot WebUI 的插件配置中修改“自定义帮助内容”。"
@@ -52,6 +53,7 @@ class CustomHelpPlugin(Star):
         self.render_lock = asyncio.Lock()
         self.cache = OrderedDict()
         self.discovery_task = None
+        self.style_reader = StyleReader()
 
     def log_failure(self, action):
         logger.error(
@@ -142,21 +144,52 @@ class CustomHelpPlugin(Star):
                 await asyncio.gather(*calls)
             self.discovery_errors = list(dict.fromkeys(errors))
 
-    async def render_images(self, profile, group_name=""):
-        key = json.dumps([profile, group_name], ensure_ascii=False, sort_keys=True)
+    async def read_styles(self):
+        paths, options = runtime_sources(self.context)
+        return await asyncio.to_thread(
+            self.style_reader.load, self.service.catalog, paths, options
+        )
+
+    async def page_state(self):
+        styles = await self.read_styles()
+        return {
+            **self.service.snapshot(),
+            "discovery_errors": self.discovery_errors,
+            "styles": {name: style.public() for name, style in styles.items()},
+        }
+
+    async def render_images(self, profile, group_name="", *, with_styles=False):
         async with self.render_lock:
+            styles = await self.read_styles()
+            signatures = {
+                item["id"]: styles[item["id"]].fingerprint
+                for item in profile["items"]
+                if item["enabled"]
+            }
+            key = json.dumps(
+                [profile, group_name, signatures], ensure_ascii=False, sort_keys=True
+            )
             if key in self.cache:
                 self.cache.move_to_end(key)
-                return self.cache[key]
-            images = await asyncio.to_thread(render_help, profile, group_name)
-            self.cache[key] = images
-            while (
-                len(self.cache) > 12
-                or sum(len(image) for batch in self.cache.values() for image in batch)
-                > 24 * 1024 * 1024
-            ):
-                self.cache.popitem(last=False)
-            return images
+                images = self.cache[key]
+            else:
+                images = await asyncio.to_thread(
+                    render_help, profile, group_name, styles
+                )
+                self.cache[key] = images
+                while (
+                    len(self.cache) > 12
+                    or sum(
+                        len(image) for batch in self.cache.values() for image in batch
+                    )
+                    > 24 * 1024 * 1024
+                ):
+                    self.cache.popitem(last=False)
+            return (
+                (images, {name: style.public() for name, style in styles.items()})
+                if with_styles
+                else images
+            )
 
     async def _observe_event(self, event):
         gid = str(event.get_group_id() or "")
