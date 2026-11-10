@@ -109,8 +109,57 @@ def catalog():
     return [{"id": name} for name in (LIUYAO, ZIWEI, RTLINK, "text-only")]
 
 
+def test_default_theme_is_keko_for_every_plugin_without_native_dependencies(tmp_path):
+    styles = styles_module.StyleReader(tmp_path / "no-installed-plugins").load(
+        catalog()
+    )
+    assert all(style.kind == "keko" for style in styles.values())
+    assert all(style.status == "builtin" for style in styles.values())
+    assert all(style.mascot_path.is_file() for style in styles.values())
+
+
+def test_keko_theme_covers_header_plugins_and_footer_on_every_page(service):
+    profile = service.snapshot()["default_profile"]
+    profile["items"] = [
+        {
+            "id": name,
+            "title": "管理员编辑的栏目标题",
+            "body": "/指令 正文\n" * 110,
+            "enabled": True,
+        }
+        for name in (ZIWEI, LIUYAO, RTLINK)
+    ]
+    original = deepcopy(profile)
+    pages = renderer.render_help(profile, "可可子的朋友们")
+    assert len(pages) >= 3
+    sections = []
+    for data in pages:
+        with Image.open(BytesIO(data)) as image:
+            assert image.height <= renderer.PAGE_HEIGHT
+            sections.extend(json.loads(image.info["help_sections"]))
+    assert {section["style"] for section in sections} == {"keko"}
+    assert list(dict.fromkeys(section["id"] for section in sections)) == [
+        "__index__",
+        ZIWEI,
+        LIUYAO,
+        RTLINK,
+        "__footer__",
+    ]
+    assert profile == original
+
+
+def test_missing_keko_decoration_does_not_prevent_help_output(
+    service, tmp_path, monkeypatch
+):
+    monkeypatch.setattr(styles_module, "KEKO_PATH", tmp_path / "missing.png")
+    profile = service.snapshot()["default_profile"]
+    pages = renderer.render_help(profile)
+    assert pages and all(page.startswith(b"\x89PNG") for page in pages)
+    assert "/甲 查询甲的内容" in renderer.format_text(profile)
+
+
 def test_reads_native_assets_without_importing_plugin_entry_points(native_sources):
-    styles = styles_module.StyleReader(native_sources).load(catalog())
+    styles = styles_module.StyleReader(native_sources).load(catalog(), theme="native")
     assert [styles[name].kind for name in (LIUYAO, ZIWEI, RTLINK)] == [
         "liuyao",
         "ziwei",
@@ -131,13 +180,13 @@ def test_reads_native_assets_without_importing_plugin_entry_points(native_source
 
 def test_color_source_changes_invalidate_style_and_image(native_sources):
     reader = styles_module.StyleReader(native_sources)
-    before = reader.load(catalog())[LIUYAO]
+    before = reader.load(catalog(), theme="native")[LIUYAO]
     source = native_sources / LIUYAO / "renderer.py"
     source.write_text(
         source.read_text(encoding="utf-8").replace("#234A3B", "#213E71"),
         encoding="utf-8",
     )
-    after = reader.load(catalog())[LIUYAO]
+    after = reader.load(catalog(), theme="native")[LIUYAO]
     assert after.fingerprint != before.fingerprint
     assert after.palette["accent"] == "#213E71"
     assert before.palette["accent"] == "#234A3B"
@@ -145,8 +194,10 @@ def test_color_source_changes_invalidate_style_and_image(native_sources):
 
 def test_ziwei_follows_own_theme_setting(native_sources):
     reader = styles_module.StyleReader(native_sources)
-    night = reader.load(catalog())[ZIWEI]
-    day = reader.load(catalog(), options={ZIWEI: {"theme": "day"}})[ZIWEI]
+    night = reader.load(catalog(), theme="native")[ZIWEI]
+    day = reader.load(catalog(), theme="native", options={ZIWEI: {"theme": "day"}})[
+        ZIWEI
+    ]
     assert day.palette["bg"] == "#f8f4ed"
     assert day.fingerprint != night.fingerprint
     assert "浅色" in day.label
@@ -169,7 +220,7 @@ def test_unavailable_native_style_falls_back_without_affecting_others(
                 "raise ValueError('incompatible helper')",
             )
         )
-    styles = styles_module.StyleReader(native_sources).load(catalog())
+    styles = styles_module.StyleReader(native_sources).load(catalog(), theme="native")
     assert styles[LIUYAO].kind == "tech"
     assert styles[LIUYAO].status == "fallback"
     assert "未能读取" in styles[LIUYAO].note
@@ -191,8 +242,8 @@ def test_edited_text_and_native_style_survive_composition_in_selected_order(
         for index, name in enumerate((ZIWEI, LIUYAO, RTLINK, "text-only"))
     ]
     before = deepcopy(profile)
-    styles = styles_module.StyleReader(native_sources).load(catalog())
-    pages = renderer.render_help(profile, "测试群", styles)
+    styles = styles_module.StyleReader(native_sources).load(catalog(), theme="native")
+    pages = renderer.render_help(profile, "测试群", styles, theme="native")
     sections = []
     for png in pages:
         with Image.open(BytesIO(png)) as image:
@@ -208,11 +259,13 @@ def test_edited_text_and_native_style_survive_composition_in_selected_order(
     ]
     assert profile == before
     profile["items"][1]["body"] = "修改后的文字仍须进入原生风格图片"
-    assert renderer.render_help(profile, "测试群", styles) != pages
+    assert renderer.render_help(profile, "测试群", styles, theme="native") != pages
 
 
 def test_native_long_text_continues_without_missing_characters(native_sources):
-    style = styles_module.StyleReader(native_sources).load(catalog())[LIUYAO]
+    style = styles_module.StyleReader(native_sources).load(catalog(), theme="native")[
+        LIUYAO
+    ]
     text = "\n".join(f"/命令{i} " + "长说明" * 40 for i in range(50))
     item = {"id": LIUYAO, "title": "可编辑的长标题" * 8, "body": text}
     segments = renderer._section(item, 1, style)
@@ -230,7 +283,7 @@ def test_real_sibling_style_integration_if_present():
     root = Path(__file__).resolve().parents[2]
     if not (root / LIUYAO / "renderer.py").is_file():
         pytest.skip("real sibling plugins not installed in this test environment")
-    styles = styles_module.StyleReader(root).load(catalog())
+    styles = styles_module.StyleReader(root).load(catalog(), theme="native")
     for name in (LIUYAO, ZIWEI, RTLINK):
         assert styles[name].status == "native", styles[name].public()
         segment = renderer._section(

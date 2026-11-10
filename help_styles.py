@@ -20,6 +20,17 @@ from types import SimpleNamespace
 from PIL import Image, ImageChops, ImageDraw, ImageFilter, ImageFont
 
 FONT_PATH = Path(__file__).parent / "assets" / "fonts" / "NotoSansSC-Regular.otf"
+KEKO_PATH = Path(__file__).parent / "assets" / "keko-feeding.png"
+KEKO_PALETTE = {
+    "bg": "#F9F7ED",
+    "paper": "#FFFEF8",
+    "panel": "#EDF3DA",
+    "ink": "#35483B",
+    "muted": "#647455",
+    "border": "#CDDAB7",
+    "accent": "#314D3E",
+    "secondary": "#B9567D",
+}
 NATIVE_IDS = {"astrbot_plugin_liuyao", "astrbot_plugin_ziwei", "rt_link"}
 TECH_PALETTE = {
     "bg": "#071321",
@@ -46,12 +57,31 @@ class HelpStyle:
     fingerprint: str = "tech-v1"
     drawing: dict[str, Callable] = field(default_factory=dict, repr=False)
     native_palette: object = None
+    mascot_path: Path | None = None
 
     def public(self):
         return {
             key: getattr(self, key)
             for key in ("kind", "label", "status", "note", "source")
         }
+
+
+def keko_style():
+    try:
+        info = KEKO_PATH.stat()
+        signature = f"{info.st_mtime_ns}:{info.st_size}"
+    except OSError:
+        signature = "missing"
+    return HelpStyle(
+        kind="keko",
+        label="可可子 · 奶油浅绿",
+        status="builtin",
+        note="内置可可子插画、奶油浅绿卡片和彩虹点缀，整张帮助图使用统一主题。",
+        source="custom_help/assets/keko-feeding.png",
+        palette=dict(KEKO_PALETTE),
+        fingerprint=f"keko-v1:{signature}",
+        mascot_path=KEKO_PATH,
+    )
 
 
 def runtime_sources(context):
@@ -192,7 +222,9 @@ class StyleReader:
                     continue
         return found
 
-    def load(self, catalog, overrides=None, options=None):
+    def load(self, catalog, overrides=None, options=None, *, theme="keko"):
+        if theme != "native":
+            return {entry["id"]: keko_style() for entry in catalog}
         roots = self.directories(catalog, overrides or {})
         styles = {}
         for entry in catalog:

@@ -201,3 +201,112 @@ def test_catalog_upgrade_adds_new_section_disabled_without_replacing_edits(
     assert items[0]["body"] == "管理员已修改的甲说明"
     assert items[-1]["id"] == "third"
     assert items[-1]["enabled"] is False
+
+
+def test_stock_body_upgrade_preserves_profiles_and_persists_once(
+    service, service_module, catalog_path, tmp_path
+):
+    service.observe_group("qq", "custom", "独立群")
+    service.observe_group("qq", "inherited", "继承群")
+    state = service.snapshot()
+    profile = deepcopy(state["default_profile"])
+    profile["title"] = "群专属帮助"
+    profile["items"].reverse()
+    profile["items"][-1].update(title="自定义栏目标题", enabled=False)
+    group(state, "qq", "custom")["profile"] = profile
+    original = service.save(state)
+
+    catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+    old_body = catalog["plugins"][0]["body"]
+    catalog["plugins"][0].update(
+        previous_bodies=[old_body], body="/甲 新功能的完整说明"
+    )
+    # A different plugin's seed change has no explicitly approved migration.
+    catalog["plugins"][1]["body"] = "乙的新种子，保留已存说明"
+    catalog_path.write_text(json.dumps(catalog, ensure_ascii=False), encoding="utf-8")
+
+    reloaded = service_module.HelpService(tmp_path / "data", catalog_path)
+    expected = deepcopy(original)
+    expected.pop("catalog")
+    expected["revision"] += 1
+    expected["default_profile"]["items"][0]["body"] = "/甲 新功能的完整说明"
+    group(expected, "qq", "custom")["profile"]["items"][-1]["body"] = (
+        "/甲 新功能的完整说明"
+    )
+    assert json.loads(service.path.read_text(encoding="utf-8")) == expected
+    assert reloaded.profile_for("qq", "inherited") == expected["default_profile"]
+    assert (
+        reloaded.profile_for("qq", "custom")
+        == group(expected, "qq", "custom")["profile"]
+    )
+    with pytest.raises(service_module.HelpError) as error:
+        reloaded.save(original)
+    assert error.value.status == 409
+
+    persisted = service.path.read_bytes()
+    again = service_module.HelpService(tmp_path / "data", catalog_path)
+    assert again.snapshot() == reloaded.snapshot()
+    assert service.path.read_bytes() == persisted
+
+
+@pytest.mark.parametrize("custom_body", ["/甲 查询甲的内容\n本群附注", ""])
+def test_stock_body_upgrade_keeps_edited_or_cleared_text(
+    service, service_module, catalog_path, tmp_path, custom_body
+):
+    state = service.snapshot()
+    state["default_profile"]["items"][0]["body"] = custom_body
+    service.save(state)
+    persisted = service.path.read_bytes()
+    catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+    catalog["plugins"][0].update(
+        previous_bodies=[catalog["plugins"][0]["body"]], body="/甲 新版说明"
+    )
+    catalog_path.write_text(json.dumps(catalog, ensure_ascii=False), encoding="utf-8")
+    reloaded = service_module.HelpService(tmp_path / "data", catalog_path)
+    assert reloaded.profile_for("qq", "1")["items"][0]["body"] == custom_body
+    assert service.path.read_bytes() == persisted
+
+
+def test_stock_body_upgrade_keeps_profiles_with_no_space_for_longer_text(
+    service_module, catalog_path, tmp_path
+):
+    catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+    catalog["plugins"][0]["body"] = "旧说明"
+    catalog["plugins"].extend(
+        {
+            "id": f"long-{i}",
+            "title": "长说明",
+            "body": "字" * 5999,
+            "default_enabled": True,
+        }
+        for i in range(5)
+    )
+    catalog_path.write_text(json.dumps(catalog, ensure_ascii=False), encoding="utf-8")
+    service = service_module.HelpService(tmp_path / "data", catalog_path)
+    # Existing configuration is valid but has only two characters of headroom.
+    service.save(service.snapshot())
+    persisted = service.path.read_bytes()
+    catalog["plugins"][0].update(previous_bodies=["旧说明"], body="新版更长的说明")
+    catalog_path.write_text(json.dumps(catalog, ensure_ascii=False), encoding="utf-8")
+    reloaded = service_module.HelpService(tmp_path / "data", catalog_path)
+    assert reloaded.profile_for("qq", "1")["items"][0]["body"] == "旧说明"
+    assert service.path.read_bytes() == persisted
+
+
+def test_failed_stock_body_upgrade_keeps_original_saved_configuration(
+    service, service_module, catalog_path, tmp_path, monkeypatch
+):
+    persisted = service.path.read_bytes()
+    catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+    catalog["plugins"][0].update(
+        previous_bodies=[catalog["plugins"][0]["body"]], body="/甲 新版说明"
+    )
+    catalog_path.write_text(json.dumps(catalog, ensure_ascii=False), encoding="utf-8")
+
+    def deny_replace(*_args):
+        raise OSError("simulated disk failure")
+
+    monkeypatch.setattr(service_module.os, "replace", deny_replace)
+    with pytest.raises(OSError):
+        service_module.HelpService(tmp_path / "data", catalog_path)
+    assert service.path.read_bytes() == persisted

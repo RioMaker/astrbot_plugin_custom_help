@@ -1,4 +1,11 @@
 {
+  "help_style": {
+    "type": "string",
+    "description": "帮助图片风格",
+    "hint": "默认将表头、全部插件说明和页尾统一为可可子奶油浅绿风格；也可切换到科技风表头与各插件原生样式。更改后重新生成预览或发送 /help。",
+    "default": "可可子风格",
+    "options": ["可可子风格", "插件原生风格"]
+  },
   "help_text": {
     "type": "text",
     "description": "旧版帮助文本 / 私聊帮助",

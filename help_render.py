@@ -1,17 +1,18 @@
-"""Compose a technology-style index and individually styled plugin help panels."""
+"""Render editable help in a unified Keko theme or optional native plugin styles."""
 
 from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from functools import lru_cache
 from io import BytesIO
 
 from PIL import Image, ImageDraw, ImageFont, PngImagePlugin
 
 if __package__:
-    from .help_styles import HelpStyle, StyleReader
+    from .help_styles import HelpStyle, StyleReader, keko_style
 else:
-    from help_styles import HelpStyle, StyleReader
+    from help_styles import HelpStyle, StyleReader, keko_style
 
 WIDTH = 1080
 PAGE_HEIGHT = 4800
@@ -19,6 +20,7 @@ MARGIN = 62
 GAP = 16
 LINE = 44
 _DEFAULT_READER = StyleReader()
+RAINBOW = ("#E5A1B0", "#EAB881", "#E4CD7C", "#AEC98F", "#87BED3", "#B39DCE")
 
 
 def plugin_list(profile):
@@ -86,6 +88,46 @@ def _tech_background(height):
     return image
 
 
+def _keko_background(height):
+    p = keko_style().palette
+    image = Image.new("RGB", (WIDTH, height), p["bg"])
+    draw = ImageDraw.Draw(image)
+    draw.rounded_rectangle(
+        (18, 18, WIDTH - 19, height - 19), radius=36, fill=p["panel"]
+    )
+    for n, color in enumerate(RAINBOW):
+        x = MARGIN + n * 25
+        draw.rounded_rectangle((x, 37, x + 18, 43), radius=3, fill=color)
+    for y in range(105, height - 50, 176):
+        for x in (37, WIDTH - 38):
+            draw.ellipse((x - 3, y - 3, x + 3, y + 3), fill=p["border"])
+    return image
+
+
+@lru_cache(maxsize=8)
+def _mascot_thumbnail(path, timestamp, width, height):
+    with Image.open(path) as source:
+        mascot = source.convert("RGBA")
+    bounds = mascot.getchannel("A").getbbox()
+    if bounds:
+        mascot = mascot.crop(bounds)
+    mascot.thumbnail((width, height), Image.Resampling.LANCZOS)
+    return mascot
+
+
+def _draw_mascot(image, style, right, bottom, width, height):
+    if style.mascot_path is None:
+        return
+    try:
+        mascot = _mascot_thumbnail(
+            str(style.mascot_path), style.mascot_path.stat().st_mtime_ns, width, height
+        )
+    except (OSError, ValueError):
+        # An absent decoration must not hide the actual help instructions.
+        return
+    image.paste(mascot, (right - mascot.width, bottom - mascot.height), mascot)
+
+
 @dataclass
 class Segment:
     image: Image.Image
@@ -95,8 +137,9 @@ class Segment:
     text: str
 
 
-def _index(profile, group_name):
-    style = HelpStyle()
+def _index(profile, group_name, style):
+    is_keko = style.kind == "keko"
+    top = 266 if is_keko else 115
     fonts = {size: _font(style, size) for size in (22, 27, 32, 44)}
     rows = []
 
@@ -139,29 +182,38 @@ def _index(profile, group_name):
             return 36 + max(len(lines) for _, lines in row[0]) * 39
         return row[1] + (34 if row[2] in ("title", "label") else 18)
 
-    batches, batch, used = [], [], 115
+    batches, batch, used = [], [], top
     for row in rows:
         if batch and used + row_height(row) > PAGE_HEIGHT - 80:
             batches.append(batch)
-            batch, used = [], 115
+            batch, used = [], top
         batch.append(row)
         used += row_height(row)
     if batch:
         batches.append(batch)
     result = []
     for part, batch in enumerate(batches, 1):
-        height = 115 + sum(row_height(row) for row in batch) + 52
-        image = _tech_background(height)
+        height = top + sum(row_height(row) for row in batch) + 52
+        image = _panel_background(style, height)
         draw = ImageDraw.Draw(image)
         p = style.palette
         draw.text(
-            (MARGIN, 68),
-            "CUSTOM HELP  /  FUNCTION DIRECTORY",
-            font=fonts[22],
+            (MARGIN, 102 if is_keko else 68),
+            "可可子的功能小册" if is_keko else "CUSTOM HELP  /  FUNCTION DIRECTORY",
+            font=fonts[32 if is_keko else 22],
             fill=p["accent"],
             anchor="lt",
         )
-        y = 115
+        if is_keko:
+            draw.text(
+                (MARGIN, 158),
+                "指令、灵感与小小的使用指南",
+                font=fonts[22],
+                fill=p["muted"],
+                anchor="lt",
+            )
+            _draw_mascot(image, style, WIDTH - MARGIN, 238, 370, 184)
+        y = top
         for text, size, kind in batch:
             if kind == "tiles":
                 cell_width = (WIDTH - MARGIN * 2 - 20) // 2
@@ -170,7 +222,7 @@ def _index(profile, group_name):
                     x = MARGIN + column * (cell_width + 20)
                     draw.rounded_rectangle(
                         (x, y, x + cell_width, y + h),
-                        radius=10,
+                        radius=20 if is_keko else 10,
                         fill=p["paper"],
                         outline=p["border"],
                     )
@@ -205,12 +257,16 @@ def _index(profile, group_name):
                 )
                 draw.text((MARGIN, y), text, font=fonts[size], fill=color, anchor="lt")
             y += row_height((text, size, kind))
-        result.append(Segment(image, "__index__", "tech", part, plugin_list(profile)))
+        result.append(
+            Segment(image, "__index__", style.kind, part, plugin_list(profile))
+        )
     return result
 
 
 def _panel_background(style, height):
     p = style.palette
+    if style.kind == "keko":
+        return _keko_background(height)
     if style.kind == "tech":
         return _tech_background(height)
     if style.kind == "ziwei":
@@ -229,9 +285,10 @@ def _section(item, number, style):
     title_font = _font(style, 38, heading=True)
     body_font = _font(style, 28)
     small_font = _font(style, 22)
-    titles = list(_wrap(item["title"], title_font, WIDTH - MARGIN * 2 - 110))
+    title_width = WIDTH - MARGIN * 2 - 110 - (230 if style.kind == "keko" else 0)
+    titles = list(_wrap(item["title"], title_font, title_width))
     title_height = 54 * len(titles)
-    body_top = 150 + title_height
+    body_top = max(220 if style.kind == "keko" else 0, 150 + title_height)
     # Preserve every edited character and explicit blank line. Pagination occurs
     # between wrapped lines, with a complete native-style frame on each part.
     lines = []
@@ -245,6 +302,8 @@ def _section(item, number, style):
         chunk = lines[start : start + count]
         height = body_top + len(chunk) * LINE + 72
         image = _panel_background(style, height)
+        if style.kind == "keko":
+            _draw_mascot(image, style, WIDTH - MARGIN, 170, 210, 110)
         draw = ImageDraw.Draw(image)
         x = MARGIN
         if style.kind == "liuyao":
@@ -263,7 +322,10 @@ def _section(item, number, style):
             )
         else:
             draw.rounded_rectangle(
-                (x, 62, x + 64, 124), radius=10, fill=p["panel"], outline=p["border"]
+                (x, 62, x + 64, 124),
+                radius=24 if style.kind == "keko" else 10,
+                fill=p["paper"] if style.kind == "keko" else p["panel"],
+                outline=p["border"],
             )
             draw.text(
                 (x + 32, 93),
@@ -328,9 +390,15 @@ def _section(item, number, style):
                 )
                 y += LINE
         else:
+            if style.kind == "keko":
+                draw.rounded_rectangle(
+                    (MARGIN + 5, body_top + 5, WIDTH - MARGIN + 5, height - 40),
+                    radius=24,
+                    fill=p["border"],
+                )
             draw.rounded_rectangle(
                 (MARGIN, body_top - 1, WIDTH - MARGIN, height - 46),
-                radius=14,
+                radius=24 if style.kind == "keko" else 14,
                 fill=p["paper"],
                 outline=p["border"],
             )
@@ -360,17 +428,16 @@ def _section(item, number, style):
     return result
 
 
-def _footer(text):
+def _footer(text, style):
     if not text:
         return []
-    style = HelpStyle()
     font = _font(style, 23)
     rows = list(_wrap(text, font, WIDTH - 2 * MARGIN))
     result = []
     count = (PAGE_HEIGHT - 130) // 38
     for start in range(0, len(rows), count):
         chunk = rows[start : start + count]
-        image = _tech_background(130 + len(chunk) * 38)
+        image = _panel_background(style, 130 + len(chunk) * 38)
         draw = ImageDraw.Draw(image)
         for n, line in enumerate(chunk):
             draw.text(
@@ -381,12 +448,14 @@ def _footer(text):
                 anchor="lt",
             )
         result.append(
-            Segment(image, "__footer__", "tech", start // count + 1, "\n".join(chunk))
+            Segment(
+                image, "__footer__", style.kind, start // count + 1, "\n".join(chunk)
+            )
         )
     return result
 
 
-def compose(segments):
+def compose(segments, background=None):
     """Pack complete styled panels together; never crop a plugin mid-panel."""
     batches, batch, height = [], [], 0
     for segment in segments:
@@ -400,7 +469,9 @@ def compose(segments):
     outputs = []
     for batch in batches:
         height = sum(segment.image.height for segment in batch) + GAP * (len(batch) - 1)
-        image = Image.new("RGB", (WIDTH, height), HelpStyle().palette["bg"])
+        image = Image.new(
+            "RGB", (WIDTH, height), background or HelpStyle().palette["bg"]
+        )
         top = 0
         for segment in batch:
             image.paste(segment.image, (0, top))
@@ -419,11 +490,12 @@ def compose(segments):
     return outputs
 
 
-def render_help(profile, group_name="", styles=None) -> list[bytes]:
+def render_help(profile, group_name="", styles=None, *, theme="keko") -> list[bytes]:
+    frame = keko_style() if theme != "native" else HelpStyle()
     if styles is None:
-        styles = _DEFAULT_READER.load(profile["items"])
-    segments = _index(profile, group_name)
+        styles = _DEFAULT_READER.load(profile["items"], theme=theme)
+    segments = _index(profile, group_name, frame)
     for number, item in enumerate((i for i in profile["items"] if i["enabled"]), 1):
-        segments.extend(_section(item, number, styles.get(item["id"], HelpStyle())))
-    segments.extend(_footer(profile["footer"]))
-    return compose(segments)
+        segments.extend(_section(item, number, styles.get(item["id"], frame)))
+    segments.extend(_footer(profile["footer"], frame))
+    return compose(segments, frame.palette["bg"])

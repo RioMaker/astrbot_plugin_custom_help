@@ -89,13 +89,13 @@ def run(output: Path):
                 assert page.locator(".plugin-card").count() == 19
                 assert page.locator(".plugin-toggle input:checked").count() == 14
                 assert (
-                    "竹影青玉"
+                    "可可子 · 奶油浅绿"
                     in page.locator(
                         '[data-style-id="astrbot_plugin_liuyao"]'
                     ).inner_text()
                 )
                 assert (
-                    "星空"
+                    "可可子 · 奶油浅绿"
                     in page.locator(
                         '[data-style-id="astrbot_plugin_ziwei"]'
                     ).inner_text()

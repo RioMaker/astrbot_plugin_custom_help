@@ -236,13 +236,13 @@ function renderStyleLabels() {
   const styles = state.styles || {};
   document.querySelectorAll("[data-style-id]").forEach((node) => {
     const style = styles[node.dataset.styleId];
-    node.textContent = style ? `风格：${style.label}${style.status === "fallback" ? "（原风格暂不可用）" : ""}` : "风格：科技风";
+    node.textContent = style ? `风格：${style.label}${style.status === "fallback" ? "（原风格暂不可用）" : ""}` : "风格：可可子风格";
     node.classList.toggle("fallback", style?.status === "fallback");
     node.title = style?.note || "";
   });
   document.querySelectorAll("[data-source-id]").forEach((node) => {
     const style = styles[node.dataset.sourceId];
-    node.textContent = style ? `${style.note} 来源：${style.source}` : "未提供专用帮助样式，使用科技风。";
+    node.textContent = style ? `${style.note} 来源：${style.source}` : "默认使用内置可可子风格。";
   });
   const missing = profile().items.filter((item) => item.enabled && styles[item.id]?.status === "fallback");
   $("style-warning").hidden = !missing.length;

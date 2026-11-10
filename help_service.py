@@ -67,8 +67,42 @@ class HelpService:
                 raise HelpError(
                     "帮助配置文件损坏，请检查 help_profiles.json 或恢复备份。", 500
                 ) from exc
+            self._refresh_catalog_bodies()
         else:
             self._write(self.state)
+
+    def _refresh_catalog_bodies(self):
+        """Refresh explicitly listed stock text without replacing user edits."""
+        updates = {p["id"]: p for p in self.catalog if p.get("previous_bodies")}
+        if not updates:
+            return
+        candidate = deepcopy(self.state)
+        profiles = [candidate["default_profile"]] + [
+            g["profile"] for g in candidate["groups"] if g["profile"] is not None
+        ]
+        changed = False
+        for profile in profiles:
+            enabled_length = sum(
+                len(item["body"]) for item in profile["items"] if item["enabled"]
+            )
+            for item in profile["items"]:
+                plugin = updates.get(item["id"])
+                if not plugin or item["body"] not in plugin["previous_bodies"]:
+                    continue
+                body = _text(plugin["body"], "body", 6000)
+                if body == item["body"]:
+                    continue
+                delta = len(body) - len(item["body"]) if item["enabled"] else 0
+                # A longer default must not make an otherwise valid profile unloadable.
+                if enabled_length + delta > 30000:
+                    continue
+                item["body"] = body
+                enabled_length += delta
+                changed = True
+        if changed:
+            candidate["revision"] += 1
+            self._write(candidate)
+            self.state = candidate
 
     @staticmethod
     def seed_item(plugin):

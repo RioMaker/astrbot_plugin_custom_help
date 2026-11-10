@@ -1,6 +1,6 @@
 # 插件帮助内容来源与范围
 
-核对日期：2026-11-06。说明库来自当前工作区上一级目录中的插件元数据、README 和实际指令入口；不扫描或导入其他插件的 Python 模块。
+全库核对日期：2026-11-06；生图说明于 2026-11-10 更新至本地 v0.3.8。说明库来自当前工作区上一级目录中的插件元数据、README 和实际指令入口；不扫描或导入其他插件的 Python 模块。
 
 ## 范围与版本
 
@@ -8,7 +8,7 @@
 - `astrbot_plugin_junjunget` 的实际元数据已是 `astrbot_plugin_welcome_qqgroup` / v1.4.0；它与正式欢迎插件目录同名、同用途，不重复显示。此处只合并帮助项，不合并仓库或迁移清单。
 - `astrbot_plugin_usage_stats` 在本地存在，版本为 0.2.0，但未出现在此次 HTTP 部署附件或父目录迁移清单中；按本地插件纳入，默认不展示。
 - 附件中你维护的 14 个已启用插件，其帮助默认开启；已停用的可可子人格管理、星轨神谕，以及附件中未出现的分析、Grok、使用统计默认关闭。该初始选择仅供帮助配置初始化，不能据此修改其他插件的真实启用状态。
-- 紫微附件部署版本为 2.3.1，本地已为 2.3.3；种子中的主要指令均为 2.3.1 已有入口，2.3.2/2.3.3 为图片布局调整。自定义帮助 2.1.0 为当前本地版本，附件仍为 1.0.0。
+- 紫微附件部署版本为 2.3.1，本地已为 2.3.3；种子中的主要指令均为 2.3.1 已有入口，2.3.2/2.3.3 为图片布局调整。自定义帮助 2.2.0 为当前本地版本，附件仍为 1.0.0。
 - 说明库按本地源码能力整理。相同版本字符串不代表本地工作区与运行服务器的代码逐字相同；星轨神谕 README 明确其紫微星图仍处于本地预览阶段，保留在默认关闭的说明中。
 - 五行数字卦保留运行标识 `wuxing_num` 和作者元数据；其安装来源属于 RioMaker，按用户维护范围收录，不据此改写原创署名。
 
@@ -16,7 +16,7 @@
 
 `help_catalog.json` 顶层为 `plugins` 数组。`id` 是元数据的运行标识，`directory` 是核对时的本地目录，`version` 是说明对应的本地版本，`title`、`summary`、`body` 是可编辑的纯文字默认内容。`default_enabled` 是初始化时的帮助展示选择。`aliases` 只用于匹配历史标识或目录，不是聊天命令别名。
 
-标题、摘要和正文不含 HTML。每份正文保留常用用户入口及必要权限说明；完整的高风险管理指令、模型配置与详细参数请查对应插件文档。生日等示例使用插件文档的虚构演示资料。后台编辑后的用户内容应保留，不随插件种子更新而静默覆盖。
+标题、摘要和正文不含 HTML。每份正文保留常用用户入口及必要权限说明；完整的高风险管理指令、模型配置与详细参数请查对应插件文档。生日等示例使用插件文档的虚构演示资料。后台编辑后的用户内容应保留。可选的 `previous_bodies` 列出确认过的旧版默认正文；重载时仅精确匹配这些原文的栏目更新为当前 `body`，标题、开关、顺序和自行修改的正文保留。启用说明总字数会超过上限时保留旧正文。
 
 ## 逐插件清单
 
@@ -28,14 +28,14 @@
 | 五行数字卦 | `wuxing_num` | v1.7.0 | 启用 v1.7.0 | 开启 | [元数据](../../astrbot_plugin_wuxing_num/metadata.yaml)、[说明](../../astrbot_plugin_wuxing_num/README.md)、[指令源码](../../astrbot_plugin_wuxing_num/main.py) |
 | 紫微斗数排盘 | `astrbot_plugin_ziwei` | 2.3.3 | 启用 2.3.1 | 开启 | [元数据](../../astrbot_plugin_ziwei/metadata.yaml)、[说明](../../astrbot_plugin_ziwei/README.md)、[指令源码](../../astrbot_plugin_ziwei/main.py) |
 | 干支纪时 | `astrbot_plugin_ganzhi` | 0.3.0 | 启用 0.3.0 | 开启 | [元数据](../../astrbot_plugin_ganzhi/metadata.yaml)、[说明](../../astrbot_plugin_ganzhi/README.md)、[指令源码](../../astrbot_plugin_ganzhi/main.py) |
-| AI 生图与动图 | `astrbot_plugin_img_gener` | 0.3.3 | 启用 0.3.3 | 开启 | [元数据](../../astrbot_plugin_img_gener/metadata.yaml)、[说明](../../astrbot_plugin_img_gener/README.md)、[指令源码](../../astrbot_plugin_img_gener/main.py) |
+| AI 生图与动图 | `astrbot_plugin_img_gener` | 0.3.8 | 启用 0.3.3 | 开启 | [元数据](../../astrbot_plugin_img_gener/metadata.yaml)、[说明](../../astrbot_plugin_img_gener/README.md)、[指令源码](../../astrbot_plugin_img_gener/main.py) |
 | 思考气泡 | `astrbot_plugin_think_bubble` | 1.2.0 | 启用 1.2.0 | 开启 | [元数据](../../astrbot_plugin_think_bubble/metadata.yaml)、[说明](../../astrbot_plugin_think_bubble/README.md)、[指令源码](../../astrbot_plugin_think_bubble/main.py) |
 | 投喂与赞助 | `astrbot_plugin_feed` | 0.3.0 | 启用 0.3.0 | 开启 | [元数据](../../astrbot_plugin_feed/metadata.yaml)、[说明](../../astrbot_plugin_feed/README.md)、[指令源码](../../astrbot_plugin_feed/main.py) |
 | QQ 群入群欢迎 | `astrbot_plugin_welcome_qqgroup` | v1.4.0 | 启用 v1.4.0 | 开启 | [元数据](../../astrbot_plugin_welcome_qqgroup/metadata.yaml)、[说明](../../astrbot_plugin_welcome_qqgroup/README.md)、[指令源码](../../astrbot_plugin_welcome_qqgroup/main.py) |
 | 门禁与积分 | `astrbot_plugin_access_gate` | 2.4.0 | 启用 2.4.0 | 开启 | [元数据](../../astrbot_plugin_access_gate/metadata.yaml)、[说明](../../astrbot_plugin_access_gate/README.md)、[指令源码](../../astrbot_plugin_access_gate/main.py) |
 | API 钱包余额 | `astrbot_plugin_wallet_balance` | 0.2.1 | 启用 0.2.1 | 开启 | [元数据](../../astrbot_plugin_wallet_balance/metadata.yaml)、[说明](../../astrbot_plugin_wallet_balance/README.md)、[指令源码](../../astrbot_plugin_wallet_balance/main.py) |
 | 插件更新动态 | `astrbot_plugin_githook` | 0.3.0 | 启用 0.3.0 | 开启 | [元数据](../../astrbot_plugin_githook/metadata.yaml)、[说明](../../astrbot_plugin_githook/README.md)、[指令源码](../../astrbot_plugin_githook/main.py) |
-| 本群帮助 | `astrbot_plugin_custom_help` | 2.1.0 | 启用 1.0.0 | 开启 | [元数据](../../astrbot_plugin_custom_help/metadata.yaml)、[说明](../../astrbot_plugin_custom_help/README.md)、[指令源码](../../astrbot_plugin_custom_help/main.py) |
+| 本群帮助 | `astrbot_plugin_custom_help` | 2.2.0 | 启用 1.0.0 | 开启 | [元数据](../../astrbot_plugin_custom_help/metadata.yaml)、[说明](../../astrbot_plugin_custom_help/README.md)、[指令源码](../../astrbot_plugin_custom_help/main.py) |
 | 使用统计 | `astrbot_plugin_usage_stats` | 0.2.0 | 未出现 | 关闭 | [元数据](../../astrbot_plugin_usage_stats/metadata.yaml)、[说明](../../astrbot_plugin_usage_stats/README.md)、[指令源码](../../astrbot_plugin_usage_stats/main.py) |
 | 可可子人格管理 | `astrbot_plugin_persona_manager` | 0.4.0 | 停用 0.4.0 | 关闭 | [元数据](../../astrbot_plugin_persona_manager/metadata.yaml)、[说明](../../astrbot_plugin_persona_manager/README.md)、[指令源码](../../astrbot_plugin_persona_manager/main.py) |
 | 星轨神谕 · 星图 | `astrbot_plugin_astro_oracle` | 0.1.5 | 停用 0.1.5 | 关闭 | [元数据](../../astrbot_plugin_astro_oracle/metadata.yaml)、[说明](../../astrbot_plugin_astro_oracle/README.md)、[指令源码](../../astrbot_plugin_astro_oracle/main.py) |
@@ -139,18 +139,25 @@ AI 取根气按本群配置限次；明确手动填写水、火、木、金、�
 
 ### AI 生图与动图
 
-文字生图、GIF、人物参考图和永久图库。
+文字生图、GIF、参考图、永久图库与随机／指定编号裁切拼图。
 
 ```text
 /生图 雨后的车站，温暖插画风：生成静态图片；也可用 /绘图、/draw。
-/生动图 一只眨眼的小猫：生成 GIF 动图。
+/生动图 眨眼的小猫：生成 GIF；默认 512×512、16 帧、每帧 40ms。
+静态图和 GIF 均可直接附图或回复图片作为参考，也可直接告诉 AI 你的需求。
 /生图人物：查看可用人物；/生图参考图：查看自己的本体参考图。
 /生图参考图 设置：同时发送或引用恰好一张图片，替换自己的参考图。
 /生图状态：查看队列、进度、最近结果、余量与冷却。
-/生图历史：查看图库说明；/生图历史 123：按编号查看；/生图历史 随机 4：随机拼图。
-/画廊：本人最近图片；/画廊 10：最近 10 张；/画廊 -5：从最近第 5 张开始。
-/画廊 [123 151 488]：按编号和顺序拼图，方括号须保留。
-任务受理后在后台生成，请按任务号查看结果。参考历史图片时请回复或引用对应图片消息。管理员可在生图管理页配置参数、管理图库与参考图。
+/生图历史：查看图库说明；/生图历史 123：按编号查看原图及详情。
+/生图历史 随机：随机单图；/生图历史 随机 4：整图宫格，数量 1～9。
+/随机拼图：随机两张图，等高后各取左、右半幅拼接。
+/随机拼图 4：四宫格裁切；支持 2～20 张，偶数宫格、奇数饼图扇形。
+/拼图 233 123：按图库编号裁切，233 左半、123 右半；2～20 个编号用空格分隔，无需方括号。
+/拼图 233 123 456：按输入顺序拼成三个扇形；四个编号为四宫格，与随机拼图规则一致。
+/画廊：本人最近 20 张；/画廊 10：最近 10 张；/画廊 -5：从最近第 5 张起取最多 20 张。
+/画廊 [123 151 488]：按编号和顺序展示完整图片，最多 20 项，方括号须保留。
+拼图与画廊只在本地处理，不占生图额度；GIF 仅取首帧，查看完整动图请用 /生图历史 编号。
+生图任务受理后在后台生成，请按任务号核对结果。管理员可在生图管理页配置参数、管理图库与参考图。
 ```
 
 ### 思考气泡
