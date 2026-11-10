@@ -89,15 +89,21 @@ def run(output: Path):
                 assert page.locator(".plugin-card").count() == 19
                 assert page.locator(".plugin-toggle input:checked").count() == 14
                 assert (
-                    "可可子 · 奶油浅绿"
+                    "竹影青玉"
                     in page.locator(
                         '[data-style-id="astrbot_plugin_liuyao"]'
                     ).inner_text()
                 )
                 assert (
-                    "可可子 · 奶油浅绿"
+                    "星空"
                     in page.locator(
                         '[data-style-id="astrbot_plugin_ziwei"]'
+                    ).inner_text()
+                )
+                assert (
+                    "可可子 · 奶油浅绿"
+                    in page.locator(
+                        '[data-style-id="astrbot_plugin_img_gener"]'
                     ).inner_text()
                 )
                 page.locator("#groups button").first.click()

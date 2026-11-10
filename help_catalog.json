@@ -135,7 +135,7 @@
       "id": "astrbot_plugin_custom_help",
       "directory": "astrbot_plugin_custom_help",
       "title": "本群帮助",
-      "version": "2.2.0",
+      "version": "2.2.1",
       "summary": "查看本群已选择的插件说明。",
       "body": "/help 或 /帮助：查看本群帮助图，包含管理员为当前群选择的插件说明。\n管理员可在自定义帮助的管理页面选择群聊，勾选展示的插件、编辑说明和表头清单、调整拼接顺序并预览。\n帮助展示开关只决定本图包含哪些说明；插件本身的启用、群授权、额度和权限仍由各插件管理。",
       "default_enabled": true,

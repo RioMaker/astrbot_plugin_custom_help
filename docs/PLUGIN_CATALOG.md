@@ -8,7 +8,7 @@
 - `astrbot_plugin_junjunget` 的实际元数据已是 `astrbot_plugin_welcome_qqgroup` / v1.4.0；它与正式欢迎插件目录同名、同用途，不重复显示。此处只合并帮助项，不合并仓库或迁移清单。
 - `astrbot_plugin_usage_stats` 在本地存在，版本为 0.2.0，但未出现在此次 HTTP 部署附件或父目录迁移清单中；按本地插件纳入，默认不展示。
 - 附件中你维护的 14 个已启用插件，其帮助默认开启；已停用的可可子人格管理、星轨神谕，以及附件中未出现的分析、Grok、使用统计默认关闭。该初始选择仅供帮助配置初始化，不能据此修改其他插件的真实启用状态。
-- 紫微附件部署版本为 2.3.1，本地已为 2.3.3；种子中的主要指令均为 2.3.1 已有入口，2.3.2/2.3.3 为图片布局调整。自定义帮助 2.2.0 为当前本地版本，附件仍为 1.0.0。
+- 紫微附件部署版本为 2.3.1，本地已为 2.3.3；种子中的主要指令均为 2.3.1 已有入口，2.3.2/2.3.3 为图片布局调整。自定义帮助 2.2.1 为当前本地版本，附件仍为 1.0.0。
 - 说明库按本地源码能力整理。相同版本字符串不代表本地工作区与运行服务器的代码逐字相同；星轨神谕 README 明确其紫微星图仍处于本地预览阶段，保留在默认关闭的说明中。
 - 五行数字卦保留运行标识 `wuxing_num` 和作者元数据；其安装来源属于 RioMaker，按用户维护范围收录，不据此改写原创署名。
 
@@ -35,7 +35,7 @@
 | 门禁与积分 | `astrbot_plugin_access_gate` | 2.4.0 | 启用 2.4.0 | 开启 | [元数据](../../astrbot_plugin_access_gate/metadata.yaml)、[说明](../../astrbot_plugin_access_gate/README.md)、[指令源码](../../astrbot_plugin_access_gate/main.py) |
 | API 钱包余额 | `astrbot_plugin_wallet_balance` | 0.2.1 | 启用 0.2.1 | 开启 | [元数据](../../astrbot_plugin_wallet_balance/metadata.yaml)、[说明](../../astrbot_plugin_wallet_balance/README.md)、[指令源码](../../astrbot_plugin_wallet_balance/main.py) |
 | 插件更新动态 | `astrbot_plugin_githook` | 0.3.0 | 启用 0.3.0 | 开启 | [元数据](../../astrbot_plugin_githook/metadata.yaml)、[说明](../../astrbot_plugin_githook/README.md)、[指令源码](../../astrbot_plugin_githook/main.py) |
-| 本群帮助 | `astrbot_plugin_custom_help` | 2.2.0 | 启用 1.0.0 | 开启 | [元数据](../../astrbot_plugin_custom_help/metadata.yaml)、[说明](../../astrbot_plugin_custom_help/README.md)、[指令源码](../../astrbot_plugin_custom_help/main.py) |
+| 本群帮助 | `astrbot_plugin_custom_help` | 2.2.1 | 启用 1.0.0 | 开启 | [元数据](../../astrbot_plugin_custom_help/metadata.yaml)、[说明](../../astrbot_plugin_custom_help/README.md)、[指令源码](../../astrbot_plugin_custom_help/main.py) |
 | 使用统计 | `astrbot_plugin_usage_stats` | 0.2.0 | 未出现 | 关闭 | [元数据](../../astrbot_plugin_usage_stats/metadata.yaml)、[说明](../../astrbot_plugin_usage_stats/README.md)、[指令源码](../../astrbot_plugin_usage_stats/main.py) |
 | 可可子人格管理 | `astrbot_plugin_persona_manager` | 0.4.0 | 停用 0.4.0 | 关闭 | [元数据](../../astrbot_plugin_persona_manager/metadata.yaml)、[说明](../../astrbot_plugin_persona_manager/README.md)、[指令源码](../../astrbot_plugin_persona_manager/main.py) |
 | 星轨神谕 · 星图 | `astrbot_plugin_astro_oracle` | 0.1.5 | 停用 0.1.5 | 关闭 | [元数据](../../astrbot_plugin_astro_oracle/metadata.yaml)、[说明](../../astrbot_plugin_astro_oracle/README.md)、[指令源码](../../astrbot_plugin_astro_oracle/main.py) |
@@ -314,4 +314,4 @@ AstrBot 管理员可用 /grok重置 <QQ号或群号> 重置指定额度，all �
 
 ## 2026-11-10 样式读取
 
-说明文字沿用本文核对范围。v2.1.0 新增读取已安装六爻、紫微和 RTLink 帮助样式；只更新本插件版本，不自动改写已保存说明。原生风格来源、资源要求和回退规则见 [README](../README.md#原生帮助风格与科技风清单)。
+说明文字沿用本文核对范围。v2.1.0 新增读取已安装六爻、紫微和 RTLink 帮助样式；只更新本插件版本，不自动改写已保存说明。原生风格来源、资源要求和回退规则见 [README](../README.md#帮助图片风格)。

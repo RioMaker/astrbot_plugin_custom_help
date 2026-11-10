@@ -17,10 +17,10 @@ from astrbot.api.star import Context, Star, StarTools, register
 from .admin_api import AdminAPI
 from .help_render import format_text, render_help
 from .help_service import HelpService
-from .help_styles import StyleReader, keko_style, runtime_sources
+from .help_styles import StyleReader, runtime_sources
 
 PLUGIN_NAME = "astrbot_plugin_custom_help"
-PLUGIN_VERSION = "2.2.0"
+PLUGIN_VERSION = "2.2.1"
 HELP_PRIORITY = 1000
 DEFAULT_HELP_TEXT = (
     "这里是自定义帮助信息。\n\n请在 AstrBot WebUI 的插件配置中修改“自定义帮助内容”。"
@@ -144,16 +144,10 @@ class CustomHelpPlugin(Star):
                 await asyncio.gather(*calls)
             self.discovery_errors = list(dict.fromkeys(errors))
 
-    def help_theme(self):
-        return "native" if self.config.get("help_style") == "插件原生风格" else "keko"
-
     async def read_styles(self):
-        theme = self.help_theme()
-        paths, options = (
-            runtime_sources(self.context) if theme == "native" else ({}, {})
-        )
+        paths, options = runtime_sources(self.context)
         return await asyncio.to_thread(
-            self.style_reader.load, self.service.catalog, paths, options, theme=theme
+            self.style_reader.load, self.service.catalog, paths, options
         )
 
     async def page_state(self):
@@ -166,26 +160,21 @@ class CustomHelpPlugin(Star):
 
     async def render_images(self, profile, group_name="", *, with_styles=False):
         async with self.render_lock:
-            theme = self.help_theme()
             styles = await self.read_styles()
             signatures = {
                 item["id"]: styles[item["id"]].fingerprint
                 for item in profile["items"]
                 if item["enabled"]
             }
-            if theme == "keko":
-                signatures["__frame__"] = keko_style().fingerprint
             key = json.dumps(
-                [profile, group_name, theme, signatures],
-                ensure_ascii=False,
-                sort_keys=True,
+                [profile, group_name, signatures], ensure_ascii=False, sort_keys=True
             )
             if key in self.cache:
                 self.cache.move_to_end(key)
                 images = self.cache[key]
             else:
                 images = await asyncio.to_thread(
-                    render_help, profile, group_name, styles, theme=theme
+                    render_help, profile, group_name, styles
                 )
                 self.cache[key] = images
                 while (

@@ -76,10 +76,10 @@ def keko_style():
         kind="keko",
         label="可可子 · 奶油浅绿",
         status="builtin",
-        note="内置可可子插画、奶油浅绿卡片和彩虹点缀，整张帮助图使用统一主题。",
+        note="生图帮助专用：可可子插画、奶油浅绿卡片和彩虹点缀。",
         source="custom_help/assets/keko-feeding.png",
         palette=dict(KEKO_PALETTE),
-        fingerprint=f"keko-v1:{signature}",
+        fingerprint=f"keko-image-v1:{signature}",
         mascot_path=KEKO_PATH,
     )
 
@@ -222,13 +222,14 @@ class StyleReader:
                     continue
         return found
 
-    def load(self, catalog, overrides=None, options=None, *, theme="keko"):
-        if theme != "native":
-            return {entry["id"]: keko_style() for entry in catalog}
+    def load(self, catalog, overrides=None, options=None):
         roots = self.directories(catalog, overrides or {})
         styles = {}
         for entry in catalog:
             name = entry["id"]
+            if name == "astrbot_plugin_img_gener":
+                styles[name] = keko_style()
+                continue
             if name not in NATIVE_IDS:
                 styles[name] = HelpStyle()
                 if name == "astrbot_plugin_custom_help":

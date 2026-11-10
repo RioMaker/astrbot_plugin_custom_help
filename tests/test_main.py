@@ -3,13 +3,16 @@ from __future__ import annotations
 import asyncio
 import base64
 import inspect
+import json
 import logging
 import sys
 import types
+from io import BytesIO
 from unittest.mock import AsyncMock, Mock
 
 import pytest
 from conftest import PACKAGE, load_module
+from PIL import Image
 
 
 @pytest.fixture
@@ -205,19 +208,20 @@ def test_group_render_failure_falls_back_to_its_selected_text(plugin_module):
     assert all(len(text) <= 3500 for text in results)
 
 
-def test_theme_change_refreshes_even_empty_help_preview_and_chat_cache(plugin_module):
-    plugin = plugin_module.CustomHelpPlugin(context_with_platforms(), {})
+def test_old_global_theme_setting_does_not_restyle_other_help(plugin_module):
+    plugin = plugin_module.CustomHelpPlugin(
+        context_with_platforms(), {"help_style": "可可子风格"}
+    )
     profile = plugin.service.snapshot()["default_profile"]
-    for item in profile["items"]:
-        item["enabled"] = False
 
     async def run():
-        keko = await plugin.render_images(profile)
-        plugin.config["help_style"] = "插件原生风格"
-        native = await plugin.render_images(profile)
-        assert keko != native
-        plugin.config["help_style"] = "可可子风格"
-        assert await plugin.render_images(profile) == keko
+        with_old_setting = await plugin.render_images(profile)
+        for data in with_old_setting:
+            with Image.open(BytesIO(data)) as image:
+                sections = json.loads(image.info["help_sections"])
+                assert all(section["style"] == "tech" for section in sections)
+        plugin.config.pop("help_style")
+        assert await plugin.render_images(profile) == with_old_setting
 
     asyncio.run(run())
 
@@ -301,9 +305,7 @@ def test_failed_discovery_keeps_existing_groups_and_does_not_expose_error_detail
 def test_render_cache_changes_when_description_changes(plugin_module, monkeypatch):
     plugin = plugin_module.CustomHelpPlugin(context_with_platforms(), {})
     renderer = Mock(
-        side_effect=lambda profile, name, styles, **kwargs: [
-            profile["items"][0]["body"].encode()
-        ]
+        side_effect=lambda profile, name, styles: [profile["items"][0]["body"].encode()]
     )
     monkeypatch.setattr(plugin_module, "render_help", renderer)
     profile = plugin.service.snapshot()["default_profile"]
@@ -347,9 +349,7 @@ def test_native_style_change_invalidates_chat_and_preview_cache(
         return_value={"first": active_style, "second": style_module.HelpStyle()}
     )
     renderer_mock = Mock(
-        side_effect=lambda profile, name, styles, **kwargs: [
-            styles["first"].fingerprint.encode()
-        ]
+        side_effect=lambda profile, name, styles: [styles["first"].fingerprint.encode()]
     )
     monkeypatch.setattr(plugin_module, "render_help", renderer_mock)
     profile = plugin.service.snapshot()["default_profile"]
