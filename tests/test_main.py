@@ -88,6 +88,24 @@ class Event:
         self.stopped = False
         self.sent = []
         self.stopped_when_sent = []
+        self.message_obj = types.SimpleNamespace(message=[], raw_message={})
+        self.extras = {}
+        self.suppressed = False
+
+    def get_self_id(self):
+        return "999"
+
+    def get_sender_id(self):
+        return "111"
+
+    def get_extra(self, key, default=None):
+        return self.extras.get(key, default)
+
+    def is_stopped(self):
+        return self.stopped
+
+    def should_call_llm(self, value):
+        self.suppressed = value
 
     def stop_event(self):
         self.stopped = True
@@ -181,7 +199,8 @@ def test_group_help_uses_group_override_and_shared_renderer(plugin_module):
     profile["title"] = "本群专属帮助"
     profile["items"][0]["enabled"] = False
     profile["items"][1]["enabled"] = True
-    state["groups"][0]["profile"] = profile
+    state["templates"] = [{"id": "custom", "name": "独立模板", "profile": profile}]
+    state["groups"][0]["template_id"] = "custom"
     plugin.service.save(state)
     event = Event("123")
 

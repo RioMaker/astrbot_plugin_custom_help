@@ -27,6 +27,7 @@ def run(output: Path):
         service = HelpService(Path(data), ROOT / "help_catalog.json")
         service.observe_group("qq-main", "10001", "太鼓交流一群")
         service.observe_group("qq-main", "10002", "可可子的朋友们")
+        service.observe_group("qq-main", "10004", "默认聊天群")
         style_reader = StyleReader()
 
         def styles():
@@ -106,9 +107,27 @@ def run(output: Path):
                         '[data-style-id="astrbot_plugin_img_gener"]'
                     ).inner_text()
                 )
-                page.locator("#groups button").first.click()
-                assert page.locator("#field-title").is_disabled()
-                page.locator("#scope-actions button").click()
+                page.locator("#new-template").click()
+                page.locator("#template-name").fill("太鼓交流帮助")
+                page.locator("#trigger-name").check()
+                page.locator("#trigger-poke").check()
+                page.locator("#bot-name").fill("小可")
+                page.get_by_role(
+                    "checkbox", name="应用到 太鼓交流一群", exact=True
+                ).check()
+                page.get_by_role(
+                    "checkbox", name="应用到 可可子的朋友们", exact=True
+                ).check()
+                page.get_by_role(
+                    "checkbox", name="太鼓交流一群 开启快捷帮助", exact=True
+                ).check()
+                assert "2 个群" in page.locator("#assigned-count").inner_text()
+                assert "默认聊天群" in page.locator("#default-members").text_content()
+                assert (
+                    "太鼓交流一群"
+                    not in page.locator("#default-members").text_content()
+                )
+                page.locator("#preview-group").select_option('["qq-main","10001"]')
                 page.locator("#field-title").fill("太鼓一群 · 专属帮助")
                 page.locator("#field-list_title").fill("本群插件帮助清单")
                 page.locator("#field-list_text").fill("欢迎使用本群功能：\n{plugins}")
@@ -142,17 +161,75 @@ def run(output: Path):
                 assert first["title"] == "太鼓一群 · 专属帮助"
                 assert first["items"][0]["id"] == "rt_link"
                 assert not first["items"][5]["enabled"]
+                assert service.profile_for("qq-main", "10002") == first
                 assert (
-                    service.profile_for("qq-main", "10002")["title"] != first["title"]
+                    service.profile_for("qq-main", "10004")["title"] != first["title"]
                 )
+                assert service.settings_for("qq-main", "10001")[1] is True
+                assert service.settings_for("qq-main", "10002")[1] is False
+                assert first["triggers"] == {
+                    "at": True,
+                    "name": True,
+                    "poke": True,
+                    "bot_name": "小可",
+                }
                 page.reload()
                 page.locator("#workspace").wait_for(state="visible")
-                page.locator("#groups button").first.click()
+                page.locator("#templates .scope-button").first.click()
                 assert page.locator("#field-title").input_value() == first["title"]
+                assert page.locator("#bot-name").input_value() == "小可"
+                page.get_by_role("button", name="复制为新模板", exact=True).click()
+                page.locator("#template-name").fill("另一份帮助")
+                page.locator("#field-title").fill("第二个模板的说明")
+                page.get_by_role(
+                    "checkbox", name="应用到 可可子的朋友们", exact=True
+                ).check()
+                page.locator("#save").click()
+                page.wait_for_function(
+                    "document.querySelector('#save-state').textContent==='全部修改已保存'"
+                )
+                assert service.profile_for("qq-main", "10001") == first
+                assert (
+                    service.profile_for("qq-main", "10002")["title"]
+                    == "第二个模板的说明"
+                )
+                page.get_by_role("button", name="删除模板", exact=True).click()
+                assert page.locator("#delete-dialog").is_visible()
+                page.locator("#confirm-delete").click()
+                assert page.locator("#templates .scope-button").count() == 1
+                page.locator("#save").click()
+                page.wait_for_function(
+                    "document.querySelector('#save-state').textContent==='全部修改已保存'"
+                )
+                assert (
+                    service.profile_for("qq-main", "10002")
+                    == service.snapshot()["default_profile"]
+                )
+                page.locator("#templates .scope-button").first.click()
                 page.locator("#discover").click()
                 page.wait_for_function(
-                    "document.querySelector('#group-count').textContent==='3 个群'"
+                    "document.querySelector('#group-count').textContent==='4 个群'"
                 )
+                assert service.settings_for("qq-main", "10003")[1] is False
+                page.locator("#apply-search").fill("10002")
+                page.locator("#assign-visible").click()
+                page.locator("#apply-search").fill("")
+                assert "2 个群" in page.locator("#assigned-count").inner_text()
+                page.locator("#save").click()
+                page.wait_for_function(
+                    "document.querySelector('#save-state').textContent==='全部修改已保存'"
+                )
+                page.locator("#preview-group").select_option('["qq-main","10001"]')
+                page.locator("#preview").click()
+                page.locator("#preview-images img").first.wait_for(
+                    state="visible", timeout=60000
+                )
+                page.evaluate("window.scrollTo(0, 0)")
+                page.locator("#default-members summary").click()
+                page.locator("#templates .template-members summary").click()
+                assert "太鼓交流一群" in page.locator("#templates").inner_text()
+                assert "默认聊天群" in page.locator("#default-members").inner_text()
+                page.screenshot(path=str(output / "templates-overview.png"))
                 page.set_viewport_size({"width": 390, "height": 844})
                 assert page.evaluate(
                     "document.documentElement.scrollWidth <= innerWidth"
@@ -167,7 +244,8 @@ def run(output: Path):
                     json.dumps(
                         {
                             "browser": "passed",
-                            "groups": 3,
+                            "groups": 4,
+                            "templates": len(service.snapshot()["templates"]),
                             "plugins": 19,
                             "screenshots": str(output),
                         },

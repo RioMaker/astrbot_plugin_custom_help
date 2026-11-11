@@ -18,9 +18,10 @@ from .admin_api import AdminAPI
 from .help_render import format_text, render_help
 from .help_service import HelpService
 from .help_styles import StyleReader, runtime_sources
+from .help_triggers import trigger_for
 
 PLUGIN_NAME = "astrbot_plugin_custom_help"
-PLUGIN_VERSION = "2.2.1"
+PLUGIN_VERSION = "2.3.0"
 HELP_PRIORITY = 1000
 DEFAULT_HELP_TEXT = (
     "这里是自定义帮助信息。\n\n请在 AstrBot WebUI 的插件配置中修改“自定义帮助内容”。"
@@ -205,6 +206,31 @@ class CustomHelpPlugin(Star):
             await self._observe_event(event)
         except Exception:  # noqa: BLE001 - isolate platform, storage and rendering failures
             self.log_failure("群聊登记")
+        await self.handle_help_shortcut(event)
+
+    async def handle_help_shortcut(self, event: AstrMessageEvent):
+        """Also called by access_gate after access/rest checks, before wake replies."""
+        if self.closed or (
+            callable(getattr(event, "is_stopped", None)) and event.is_stopped()
+        ):
+            return False
+        gid = str(event.get_group_id() or "")
+        if not gid:
+            return False
+        platform = str(event.get_platform_id() or event.get_platform_name())
+        profile, enabled = self.service.settings_for(platform, gid)
+        if not enabled:
+            return False
+        if not trigger_for(event, profile["triggers"]):
+            return False
+        # This coroutine delivers all pages before the scheduler sees stop_event.
+        # An event can reach the access listener, wake listener and our listener;
+        # the stopped flag prevents a second send.
+        suppress = getattr(event, "should_call_llm", None)
+        if callable(suppress):
+            suppress(True)
+        await self.custom_help(event)
+        return True
 
     @filter.command("help", alias={"帮助"}, priority=HELP_PRIORITY)
     async def custom_help(self, event: AstrMessageEvent):

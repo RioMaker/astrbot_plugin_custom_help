@@ -4,9 +4,14 @@ from __future__ import annotations
 
 import json
 import os
+import re
 import threading
 from copy import deepcopy
 from pathlib import Path
+from uuid import uuid4
+
+SCHEMA_VERSION = 2
+DEFAULT_TRIGGERS = {"at": True, "name": False, "poke": False, "bot_name": "可可子"}
 
 
 class HelpError(ValueError):
@@ -46,6 +51,7 @@ class HelpService:
         if len(legacy_text) > 3000:
             legacy_text = "旧版帮助超过 3000 字，完整内容仍保存在插件配置的“旧版帮助文本 / 私聊帮助”中。请在此编辑群帮助开场说明。"
         self.state = {
+            "schema_version": SCHEMA_VERSION,
             "revision": 0,
             "default_profile": {
                 "title": "可可子 · 群聊帮助",
@@ -55,18 +61,27 @@ class HelpService:
                 "list_text": "这份帮助图包含以下插件：\n{plugins}",
                 "footer": "发送 /help 或 /帮助，再次查看本群帮助。",
                 "items": [self.seed_item(p) for p in self.catalog],
+                "triggers": dict(DEFAULT_TRIGGERS),
             },
+            "templates": [],
             "groups": [],
         }
         if self.path.exists():
             try:
                 loaded = json.loads(self.path.read_text(encoding="utf-8"))
-                self.state = self._validate_state(loaded)
+                self.state = self._validate_state(loaded, allow_legacy=True)
             except (ValueError, KeyError, TypeError) as exc:
                 # Never overwrite damaged user data with defaults.
                 raise HelpError(
                     "帮助配置文件损坏，请检查 help_profiles.json 或恢复备份。", 500
                 ) from exc
+            if loaded.get("schema_version", 1) == 1:
+                backup = self.path.with_name("help_profiles.v1.backup.json")
+                if not backup.exists():
+                    with backup.open("xb") as file:
+                        file.write(self.path.read_bytes())
+                self.state["revision"] += 1
+                self._write(self.state)
             self._refresh_catalog_bodies()
         else:
             self._write(self.state)
@@ -78,7 +93,7 @@ class HelpService:
             return
         candidate = deepcopy(self.state)
         profiles = [candidate["default_profile"]] + [
-            g["profile"] for g in candidate["groups"] if g["profile"] is not None
+            template["profile"] for template in candidate["templates"]
         ]
         changed = False
         for profile in profiles:
@@ -126,6 +141,18 @@ class HelpService:
                 ("footer", 1000),
             )
         }
+        triggers = value.get("triggers", DEFAULT_TRIGGERS)
+        if not isinstance(triggers, dict) or any(
+            type(triggers.get(key)) is not bool for key in ("at", "name", "poke")
+        ):
+            raise HelpError("快捷帮助的触发开关必须是布尔值。")
+        bot_name = _text(triggers.get("bot_name"), "点名名称", 40, True).strip()
+        if any(char in bot_name for char in "\n\t"):
+            raise HelpError("点名名称不能包含换行或制表符。")
+        profile["triggers"] = {
+            **{key: triggers[key] for key in ("at", "name", "poke")},
+            "bot_name": bot_name,
+        }
         items = value.get("items")
         if not isinstance(items, list) or len(items) > len(self.catalog):
             raise HelpError("插件帮助列表不合法。")
@@ -160,40 +187,92 @@ class HelpService:
             raise HelpError("已开启的说明总长度不能超过 30000 字，请精简后再保存。")
         return profile
 
-    def _validate_state(self, payload):
+    def _validate_state(self, payload, *, allow_legacy=False):
         if (
             not isinstance(payload, dict)
             or type(payload.get("revision")) is not int
             or payload["revision"] < 0
         ):
             raise HelpError("配置版本不合法。")
+        schema = payload.get("schema_version", 1)
+        legacy = allow_legacy and schema == 1
+        if type(schema) is not int or (schema != SCHEMA_VERSION and not legacy):
+            raise HelpError("帮助配置结构已升级，请导出草稿后重新载入页面。", 409)
         groups = payload.get("groups")
         if not isinstance(groups, list) or len(groups) > 2000:
             raise HelpError("群列表不合法，最多支持 2000 个群。")
         result = {
+            "schema_version": SCHEMA_VERSION,
             "revision": payload["revision"],
             "default_profile": self.validate_profile(payload.get("default_profile")),
+            "templates": [],
             "groups": [],
         }
+        templates = [] if legacy else payload.get("templates")
+        if not isinstance(templates, list) or len(templates) > 2000:
+            raise HelpError("帮助模板列表不合法，最多支持 2000 个模板。")
+        template_ids = set()
+        for template in templates:
+            if not isinstance(template, dict):
+                raise HelpError("模板配置格式不合法。")
+            identifier = template.get("id")
+            if (
+                not isinstance(identifier, str)
+                or not re.fullmatch(r"[A-Za-z0-9_-]{1,80}", identifier)
+                or identifier in template_ids
+                or identifier == "__default__"
+            ):
+                raise HelpError("模板标识不合法或重复。")
+            template_ids.add(identifier)
+            result["templates"].append(
+                {
+                    "id": identifier,
+                    "name": _text(template.get("name"), "模板名称", 80, True).strip(),
+                    "profile": self.validate_profile(template.get("profile")),
+                }
+            )
         seen = set()
         for group in groups:
             if not isinstance(group, dict):
                 raise HelpError("群配置格式不合法。")
+            if not legacy and "profile" in group:
+                raise HelpError("群独立配置已改为模板绑定，请重新载入页面。", 409)
             platform = _text(group.get("platform_id"), "平台标识", 200, True)
             gid = _text(group.get("group_id"), "群号", 200, True)
             key = group_key(platform, gid)
             if key in seen or group.get("key") != key:
                 raise HelpError("群标识不一致或重复。")
             seen.add(key)
+            template_id = group.get("template_id")
+            if legacy:
+                template_id = None
+                if group.get("profile") is not None:
+                    template_id = uuid4().hex
+                    result["templates"].append(
+                        {
+                            "id": template_id,
+                            "name": (
+                                _text(group.get("name", gid), "群名称", 200) or gid
+                            )[:70]
+                            + " · 独立模板",
+                            "profile": self.validate_profile(group["profile"]),
+                        }
+                    )
+            elif template_id is not None and (
+                not isinstance(template_id, str) or template_id not in template_ids
+            ):
+                raise HelpError("群聊引用了不存在的帮助模板。")
+            shortcut_enabled = group.get("shortcut_enabled", False)
+            if type(shortcut_enabled) is not bool:
+                raise HelpError("群快捷帮助开关必须是布尔值。")
             result["groups"].append(
                 {
                     "key": key,
                     "platform_id": platform,
                     "group_id": gid,
                     "name": _text(group.get("name", gid), "群名称", 200),
-                    "profile": None
-                    if group.get("profile") is None
-                    else self.validate_profile(group["profile"]),
+                    "template_id": template_id,
+                    "shortcut_enabled": shortcut_enabled,
                 }
             )
         return result
@@ -222,9 +301,17 @@ class HelpService:
                 )
             # Auto-discovery can add groups while the editor is open. Preserve them.
             known = {g["key"] for g in candidate["groups"]}
+            if any(
+                g["key"] not in known
+                and (g["template_id"] is not None or g["shortcut_enabled"])
+                for g in self.state["groups"]
+            ):
+                raise HelpError("已配置的群不能从保存内容中移除，请重新载入页面。", 409)
             candidate["groups"].extend(
                 deepcopy(g) for g in self.state["groups"] if g["key"] not in known
             )
+            if len(candidate["groups"]) > 2000:
+                raise HelpError("合并自动发现的群后超过 2000 个，请重新载入页面。", 409)
             candidate["revision"] += 1
             self._write(candidate)
             self.state = candidate
@@ -261,7 +348,8 @@ class HelpService:
                         "platform_id": platform_id,
                         "group_id": group_id,
                         "name": name or group_id,
-                        "profile": None,
+                        "template_id": None,
+                        "shortcut_enabled": False,
                     }
                 )
             else:
@@ -270,9 +358,21 @@ class HelpService:
             self.state = candidate
 
     def profile_for(self, platform_id, group_id):
+        return self.settings_for(platform_id, group_id)[0]
+
+    def settings_for(self, platform_id, group_id):
+        """Resolve a shared template and the group's shortcut switch atomically."""
         key = group_key(str(platform_id), str(group_id))
         with self.lock:
             group = next((g for g in self.state["groups"] if g["key"] == key), None)
-            return deepcopy(
-                (group or {}).get("profile") or self.state["default_profile"]
+            template = next(
+                (
+                    t
+                    for t in self.state["templates"]
+                    if t["id"] == (group or {}).get("template_id")
+                ),
+                None,
             )
+            return deepcopy(
+                template["profile"] if template else self.state["default_profile"]
+            ), bool(group and group["shortcut_enabled"])

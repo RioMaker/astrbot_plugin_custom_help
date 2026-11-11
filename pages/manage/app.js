@@ -25,20 +25,25 @@ function notice(message = "", type = "") {
   $("notice").hidden = !message;
 }
 
-function currentGroup() {
-  return state?.groups.find((group) => group.key === selected);
+function template() {
+  return state?.templates.find((item) => item.id === selected);
 }
 
 function profile() {
-  return currentGroup()?.profile || state.default_profile;
+  return template()?.profile || state.default_profile;
 }
 
-function inherited() {
-  return selected !== DEFAULT && !currentGroup()?.profile;
+function templateName(id = selected) {
+  return id === DEFAULT || id == null ? "默认模板" : state.templates.find((item) => item.id === id)?.name || "帮助模板";
+}
+
+function isAssigned(group) {
+  return (group.template_id || DEFAULT) === selected;
 }
 
 function groupName() {
-  return selected === DEFAULT ? "默认模板" : currentGroup()?.name || currentGroup()?.group_id || "群聊";
+  const group = state.groups.find((item) => item.key === $("preview-group").value && isAssigned(item));
+  return group?.name || group?.group_id || "";
 }
 
 function updateActions() {
@@ -50,7 +55,7 @@ function updateActions() {
   $("discover").title = dirty ? "请先保存修改，再刷新群聊" : "重新检测机器人所在的群聊";
   $("preview").disabled = busy || !state || previewBusy;
   $("preview").textContent = previewBusy ? "正在生成图片…" : "生成预览";
-  $("editor-fields").disabled = busy || !state || inherited();
+  $("editor-fields").disabled = busy || !state;
   $("workspace").inert = busy;
   $("reload").disabled = busy;
   $("export-draft").disabled = busy || !state;
@@ -89,58 +94,166 @@ function selectScope(key) {
   render();
 }
 
+function groupMatches(group, query) {
+  return [group.name, group.group_id, group.platform_id].join(" ").toLocaleLowerCase().includes(query);
+}
+
+function memberList(groups) {
+  const details = element("details", "template-members");
+  details.append(element("summary", "", `应用 ${groups.length} 个群`));
+  const list = element("ul");
+  for (const group of groups) {
+    const row = element("li");
+    row.append(element("span", "", group.name || group.group_id), element("small", "", `${group.group_id} · ${group.platform_id}${group.shortcut_enabled ? " · 快捷帮助已开" : ""}`));
+    list.append(row);
+  }
+  details.append(list);
+  return details;
+}
+
 function renderGroups() {
   const query = $("group-search").value.trim().toLocaleLowerCase();
   $("default-scope").classList.toggle("active", selected === DEFAULT);
-  $("default-scope").setAttribute("aria-current", selected === DEFAULT ? "true" : "false");
-  const list = $("groups");
+  $("default-scope").setAttribute("aria-current", String(selected === DEFAULT));
+  $("default-members").replaceChildren(memberList(state.groups.filter((group) => !group.template_id && groupMatches(group, query))));
+  const list = $("templates");
   list.replaceChildren();
-  const groups = state.groups.filter((group) =>
-    [group.name, group.group_id, group.platform_id].join(" ").toLocaleLowerCase().includes(query),
-  );
-  for (const group of groups) {
-    const button = element("button", `scope-button${selected === group.key ? " active" : ""}`);
+  for (const item of state.templates) {
+    const allMembers = state.groups.filter((group) => group.template_id === item.id);
+    const members = allMembers.filter((group) => groupMatches(group, query));
+    if (query && !item.name.toLocaleLowerCase().includes(query) && !members.length) continue;
+    const card = element("div", "template-nav-card");
+    const button = element("button", `scope-button${selected === item.id ? " active" : ""}`);
     button.type = "button";
-    button.setAttribute("aria-current", selected === group.key ? "true" : "false");
-    const mark = element("span", "group-mark", "群");
-    mark.setAttribute("aria-hidden", "true");
-    const info = element("span");
-    info.append(element("strong", "", group.name || group.group_id));
-    info.append(element("small", "", `${group.group_id} · ${group.platform_id}`));
-    info.append(element("span", "group-note", group.profile ? "独立配置" : "使用默认模板"));
-    button.append(mark, info);
-    button.addEventListener("click", () => selectScope(group.key));
-    list.append(button);
+    button.dataset.templateId = item.id;
+    button.setAttribute("aria-current", String(selected === item.id));
+    const names = element("span");
+    names.append(element("strong", "", item.name), element("small", "", `${allMembers.length} 个群共用`));
+    button.append(element("span", "scope-icon", "▤"), names);
+    button.addEventListener("click", () => selectScope(item.id));
+    card.append(button, memberList(query ? members : allMembers));
+    list.append(card);
   }
-  if (!groups.length) list.append(element("p", "empty-groups", query ? "没有找到匹配的群聊" : "暂未发现群聊，可点击刷新或在群内发送消息。"));
+  if (!list.children.length) list.append(element("p", "empty-groups", query ? "没有匹配的模板或群聊" : "尚无独立模板，点击上方新建。"));
   const errors = state.discovery_errors || [];
   $("discovery-errors").hidden = !errors.length;
   $("discovery-errors").textContent = errors.map((error) => typeof error === "string" ? error : error.message || JSON.stringify(error)).join("\n");
 }
 
+function visibleGroups() {
+  const query = $("apply-search").value.trim().toLocaleLowerCase();
+  return state.groups.filter((group) => groupMatches(group, query));
+}
+
+function refreshBindings() {
+  markDirty();
+  renderGroups();
+  renderAssignments();
+  renderPreviewGroups();
+  renderScopeSummary();
+}
+
+function renderAssignments() {
+  const list = $("group-assignments");
+  list.replaceChildren();
+  const groups = visibleGroups();
+  for (const group of groups) {
+    const assigned = isAssigned(group);
+    const row = element("div", `assignment-row${assigned ? " assigned" : ""}`);
+    row.dataset.groupKey = group.key;
+    const label = element("label", "assignment-member");
+    const checkbox = element("input", "assign-group");
+    checkbox.type = "checkbox";
+    checkbox.checked = assigned;
+    checkbox.disabled = selected === DEFAULT && assigned;
+    checkbox.setAttribute("aria-label", `应用到 ${group.name || group.group_id}`);
+    checkbox.addEventListener("change", () => {
+      group.template_id = checkbox.checked && selected !== DEFAULT ? selected : null;
+      refreshBindings();
+    });
+    const info = element("span");
+    info.append(element("strong", "", group.name || group.group_id), element("small", "", `${group.group_id} · ${group.platform_id}`), element("small", "binding-name", `当前：${templateName(group.template_id)}`));
+    label.append(checkbox, info);
+    const shortcut = element("input", "enable-shortcut");
+    shortcut.type = "checkbox";
+    shortcut.checked = group.shortcut_enabled;
+    shortcut.disabled = !assigned;
+    shortcut.setAttribute("aria-label", `${group.name || group.group_id} 开启快捷帮助`);
+    shortcut.addEventListener("change", () => {
+      group.shortcut_enabled = shortcut.checked;
+      markDirty();
+      renderGroups();
+    });
+    row.append(label, shortcut);
+    list.append(row);
+  }
+  if (!groups.length) list.append(element("p", "empty-groups", "没有匹配的群聊，可刷新群聊或在群内发送消息。"));
+  $("assigned-count").textContent = `${state.groups.filter(isAssigned).length} 个群使用此模板`;
+  $("assignment-note").textContent = selected === DEFAULT
+    ? "这里集中显示群的默认与独立模板归属。勾选其他模板的群可将它移回默认模板。"
+    : "勾选群聊应用当前模板；已属于其他模板的群会移动到这里。取消勾选则回到默认模板。快捷帮助开关按群保留。";
+  $("release-visible").hidden = selected === DEFAULT;
+}
+
+function renderPreviewGroups() {
+  const select = $("preview-group");
+  const previous = select.value;
+  select.replaceChildren();
+  const generic = element("option", "", "模板预览（不显示群名）");
+  generic.value = "";
+  select.append(generic);
+  for (const group of state.groups.filter(isAssigned)) {
+    const option = element("option", "", `${group.name || group.group_id} · ${group.group_id}`);
+    option.value = group.key;
+    select.append(option);
+  }
+  select.value = [...select.options].some((option) => option.value === previous) ? previous : "";
+}
+
+function renderScopeSummary() {
+  $("scope-title").textContent = templateName();
+  $("scope-description").textContent = `编辑一次，同步影响 ${state.groups.filter(isAssigned).length} 个应用此模板的群。`;
+}
+
+function createTemplate(source) {
+  if (busy) return;
+  let number = 1;
+  while (state.templates.some((item) => item.name === `新模板 ${number}`)) number++;
+  const id = `tpl_${Date.now().toString(36)}_${Math.random().toString(36).slice(2)}`;
+  $("group-search").value = "";
+  state.templates.push({ id, name: `新模板 ${number}`, profile: clone(source) });
+  markDirty();
+  selectScope(id);
+  $("template-name").focus();
+  $("template-name").select();
+}
+
 function renderScope() {
-  $("scope-title").textContent = groupName();
-  $("scope-description").textContent = selected === DEFAULT
-    ? "此处的修改会同步影响所有使用默认模板的群。"
-    : `${currentGroup().platform_id} · 群 ${currentGroup().group_id} · ${inherited() ? "跟随默认模板" : "独立配置，仅影响本群"}`;
-  $("inherit-note").hidden = !inherited();
+  renderScopeSummary();
+  $("template-name").value = templateName();
+  $("template-name").readOnly = selected === DEFAULT;
+  for (const key of ["at", "name", "poke"]) $("trigger-" + key).checked = profile().triggers[key];
+  $("bot-name").value = profile().triggers.bot_name;
   const actions = $("scope-actions");
   actions.replaceChildren();
+  const copy = element("button", "button small", "复制为新模板");
+  copy.type = "button";
+  copy.addEventListener("click", () => createTemplate(profile()));
+  actions.append(copy);
   if (selected !== DEFAULT) {
-    const button = element("button", "button small", inherited() ? "为本群单独配置" : "恢复使用默认模板");
-    button.type = "button";
-    button.addEventListener("click", () => {
-      currentGroup().profile = inherited() ? clone(state.default_profile) : null;
-      markDirty();
-      render();
+    const remove = element("button", "button small", "删除模板");
+    remove.type = "button";
+    remove.addEventListener("click", () => {
+      $("delete-description").textContent = `删除“${templateName()}”后，${state.groups.filter(isAssigned).length} 个群会回到默认模板，快捷帮助开关保留。保存后生效。`;
+      $("delete-dialog").showModal();
     });
-    actions.append(button);
+    actions.append(remove);
   }
   for (const name of fields) $("field-" + name).value = profile()[name] || "";
 }
 
 function moveItem(index, delta) {
-  if (busy || inherited()) return;
+  if (busy) return;
   const items = profile().items;
   const target = index + delta;
   if (target < 0 || target >= items.length) return;
@@ -258,15 +371,17 @@ function placeholder() {
 function render() {
   renderGroups();
   renderScope();
+  renderAssignments();
+  renderPreviewGroups();
   renderPlugins();
   updateCounts();
   updateActions();
 }
 
 function acceptState(next) {
-  if (!next || !Array.isArray(next.groups) || !Array.isArray(next.default_profile?.items)) throw new Error("服务器返回了无效的帮助配置。");
+  if (!next || next.schema_version !== 2 || !Array.isArray(next.templates) || !Array.isArray(next.groups) || !Array.isArray(next.default_profile?.items)) throw new Error("服务器返回了无效的帮助配置。");
   state = clone(next);
-  if (selected !== DEFAULT && !state.groups.some((group) => group.key === selected)) selected = DEFAULT;
+  if (selected !== DEFAULT && !state.templates.some((item) => item.id === selected)) selected = DEFAULT;
   dirty = false;
   $("recovery").hidden = true;
   $("loading").hidden = true;
@@ -298,6 +413,8 @@ async function save() {
   updateActions();
   try {
     const result = await bridge.apiPost("save", {
+      schema_version: state.schema_version,
+      templates: clone(state.templates),
       revision: state.revision,
       default_profile: clone(state.default_profile),
       groups: clone(state.groups),
@@ -336,12 +453,12 @@ async function preview() {
   if (busy || previewBusy || !state) return;
   previewBusy = true;
   const generation = ++previewGeneration;
-  const scope = groupName();
+  const scope = groupName() || templateName();
   const draftAtRequest = dirty;
   $("preview-state").textContent = "正在渲染当前配置，内容较多时可能需要稍候…";
   updateActions();
   try {
-    const result = await bridge.apiPost("preview", { profile: clone(profile()), group_name: scope });
+    const result = await bridge.apiPost("preview", { profile: clone(profile()), group_name: groupName() });
     if (generation !== previewGeneration) return;
     if (result.styles) {
       state.styles = result.styles;
@@ -384,7 +501,7 @@ async function preview() {
 
 function exportDraft() {
   if (!state) return;
-  const blob = new Blob([JSON.stringify({ revision: state.revision, default_profile: state.default_profile, groups: state.groups }, null, 2)], { type: "application/json;charset=utf-8" });
+  const blob = new Blob([JSON.stringify({ schema_version: state.schema_version, revision: state.revision, templates: state.templates, default_profile: state.default_profile, groups: state.groups }, null, 2)], { type: "application/json;charset=utf-8" });
   const url = URL.createObjectURL(blob);
   const link = element("a");
   link.href = url;
@@ -397,11 +514,56 @@ function exportDraft() {
 
 for (const name of fields) {
   $("field-" + name).addEventListener("input", (event) => {
-    if (!state || busy || inherited()) return;
+    if (!state || busy) return;
     profile()[name] = event.target.value;
     markDirty();
   });
 }
+$("new-template").addEventListener("click", () => createTemplate(state.default_profile));
+$("template-name").addEventListener("input", (event) => {
+  if (!template() || busy) return;
+  template().name = event.target.value;
+  markDirty();
+  renderGroups();
+  renderScopeSummary();
+});
+for (const key of ["at", "name", "poke"]) {
+  $("trigger-" + key).addEventListener("change", (event) => {
+    profile().triggers[key] = event.target.checked;
+    markDirty();
+  });
+}
+$("bot-name").addEventListener("input", (event) => {
+  profile().triggers.bot_name = event.target.value;
+  markDirty();
+});
+$("apply-search").addEventListener("input", () => state && renderAssignments());
+$("assign-visible").addEventListener("click", () => {
+  for (const group of visibleGroups()) {
+    if (!isAssigned(group)) {
+      group.template_id = selected === DEFAULT ? null : selected;
+    }
+  }
+  refreshBindings();
+});
+$("release-visible").addEventListener("click", () => {
+  for (const group of visibleGroups().filter(isAssigned)) {
+    group.template_id = null;
+  }
+  refreshBindings();
+});
+$("preview-group").addEventListener("change", () => invalidatePreview("预览群聊已切换，请重新生成。"));
+$("cancel-delete").addEventListener("click", () => $("delete-dialog").close());
+$("confirm-delete").addEventListener("click", () => {
+  if (busy || selected === DEFAULT) return;
+  for (const group of state.groups.filter(isAssigned)) {
+    group.template_id = null;
+  }
+  state.templates = state.templates.filter((item) => item.id !== selected);
+  $("delete-dialog").close();
+  markDirty();
+  selectScope(DEFAULT);
+});
 $("default-scope").addEventListener("click", () => selectScope(DEFAULT));
 $("group-search").addEventListener("input", () => state && renderGroups());
 $("save").addEventListener("click", save);

@@ -16,18 +16,40 @@
       <div id="recovery" class="recovery" hidden><span>本页草稿仍然保留。可先导出，再重新载入服务器配置。</span><button id="export-draft" class="button small">导出草稿</button><button id="reload" class="button small">放弃草稿并重新载入</button></div>
       <main id="workspace" class="workspace" hidden>
         <aside class="panel group-panel">
-          <div class="panel-heading"><h2>配置范围</h2><span id="group-count" class="badge">0 个群</span></div>
+          <div class="panel-heading"><h2>帮助模板</h2><span id="group-count" class="badge">0 个群</span></div>
           <button id="default-scope" class="scope-button active"><span class="scope-icon" aria-hidden="true">✦</span><span><strong>默认模板</strong><small>新群与未单独配置的群</small></span></button>
-          <div class="group-heading"><span>我的群聊</span><button id="discover" class="text-button">刷新群聊</button></div>
-          <label class="search"><span class="sr-only">搜索群名、群号或平台</span><input id="group-search" type="search" placeholder="搜索群名 / 群号" autocomplete="off" /></label>
-          <nav id="groups" class="group-list" aria-label="选择群聊"></nav>
-          <p class="aside-note">自动发现机器人所在的群聊，也会记录收到消息的群。新群默认使用默认模板。</p>
+          <div id="default-members" class="template-members"></div>
+          <div class="group-heading"><span>独立模板</span><button id="new-template" class="text-button">＋ 新建模板</button></div>
+          <label class="search"><span class="sr-only">搜索模板、群名或群号</span><input id="group-search" type="search" placeholder="搜索模板 / 群聊" autocomplete="off" /></label>
+          <nav id="templates" class="group-list" aria-label="选择帮助模板"></nav>
+          <div class="group-heading"><span>群聊自动发现</span><button id="discover" class="text-button">刷新群聊</button></div>
+          <p class="aside-note">先编辑模板，再勾选应用的群。新发现的群使用默认模板，快捷帮助默认关闭。</p>
           <div id="discovery-errors" class="discovery-errors" hidden></div>
         </aside>
         <section class="editor-column">
           <div class="panel scope-panel"><div><p class="eyebrow">正在编辑</p><h2 id="scope-title">默认模板</h2><p id="scope-description" class="muted"></p></div><div id="scope-actions" class="scope-actions"></div></div>
-          <div id="inherit-note" class="inherit-note" hidden>本群正在使用默认模板。点击“为本群单独配置”后，即可独立选择插件、编辑文字和调整顺序。</div>
           <fieldset id="editor-fields">
+            <section class="panel template-settings">
+              <label>模板名称<input id="template-name" maxlength="80" /></label>
+              <div class="trigger-heading"><h2>快捷帮助入口</h2><span class="badge">可多选</span></div>
+              <div class="trigger-options">
+                <label><input id="trigger-at" type="checkbox" />@ 机器人返回</label>
+                <label><input id="trigger-name" type="checkbox" />点名返回</label>
+                <label><input id="trigger-poke" type="checkbox" />戳一戳返回</label>
+              </div>
+              <label>点名名称<input id="bot-name" maxlength="40" placeholder="可可子" /></label>
+              <p class="section-description">仅在下方开启“快捷帮助”的群生效。单独 @ 机器人、单独发送点名名称或戳机器人时返回此模板的帮助图；/help 始终可用。</p>
+            </section>
+            <details class="panel assignment-panel" open>
+              <summary><span>应用群聊</span><span id="assigned-count" class="badge"></span></summary>
+              <div class="assignment-body">
+                <p id="assignment-note" class="section-description"></p>
+                <label class="search"><span class="sr-only">筛选可应用的群</span><input id="apply-search" type="search" placeholder="搜索群名 / 群号 / 平台" /></label>
+                <div class="assignment-actions"><button id="assign-visible" class="text-button" type="button">应用到筛选的群</button><button id="release-visible" class="text-button" type="button">移回默认模板</button></div>
+                <div class="assignment-head"><span>应用模板 · 群聊</span><span>快捷帮助</span></div>
+                <div id="group-assignments" class="group-assignments"></div>
+              </div>
+            </details>
             <details class="panel header-editor" open>
               <summary><span><span class="section-number">01</span>表头与插件帮助清单</span><span class="summary-hint">科技风 · 可编辑</span></summary>
               <div class="header-fields">
@@ -48,6 +70,7 @@
         <aside class="panel preview-panel">
           <div class="panel-heading"><h2>帮助图预览</h2><span class="badge">/help</span></div>
           <p class="section-description">科技风清单 + 各插件帮助风格；生图栏目采用可可子风格。预览与群内回复一致；点击图片可放大。</p>
+          <label class="preview-group-label">预览群聊<select id="preview-group"><option value="">模板预览（不显示群名）</option></select></label>
           <button id="preview" class="button secondary full-width">生成预览</button>
           <p id="preview-state" class="preview-state" role="status" aria-live="polite">修改后可先预览，保存后对群聊生效。</p>
           <p id="style-warning" class="style-warning" role="status" hidden></p>
@@ -58,6 +81,7 @@
       <footer class="page-footer">自定义帮助 · 内容与顺序由你决定</footer>
     </div>
     <dialog id="image-viewer" aria-label="帮助图放大预览"><div class="viewer-toolbar"><strong>帮助图预览</strong><button id="close-viewer" class="button small">关闭</button></div><div class="viewer-content"><img id="large-preview" alt="帮助图" /></div></dialog>
+    <dialog id="delete-dialog" aria-labelledby="delete-title"><h2 id="delete-title">删除帮助模板</h2><p id="delete-description"></p><div class="dialog-actions"><button id="cancel-delete" class="button">取消</button><button id="confirm-delete" class="button primary">删除并移回默认模板</button></div></dialog>
     <script type="module" src="./app.js"></script>
   </body>
 </html>

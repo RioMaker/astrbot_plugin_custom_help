@@ -1,8 +1,8 @@
 name: astrbot_plugin_custom_help
 display_name: 自定义帮助
-short_desc: 按群配置、编辑和预览插件帮助图片。
-desc: 自动发现群聊，按群编辑插件帮助说明与顺序；科技风清单拼接各插件帮助，生图栏目采用可可子风格，其他栏目保留原生样式，预览与群内 /help 共用渲染。
-version: "2.2.1"
+short_desc: 帮助模板、批量绑定群聊与 @ / 点名 / 戳一戳快捷帮助。
+desc: 自动发现群聊，以帮助模板编辑说明与顺序并批量应用到群；按群启用 @、自定义点名和戳一戳帮助，科技风清单拼接原生插件风格，预览与群回复一致。
+version: "2.3.0"
 author: Rio
 repo: "https://github.com/RioMaker/astrbot_plugin_custom_help"
 astrbot_version: ">=4.24.0"

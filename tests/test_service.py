@@ -14,6 +14,14 @@ def group(state, platform, group_id):
     )
 
 
+def bind(state, platform, group_id, profile, template_id="custom"):
+    state["templates"].append(
+        {"id": template_id, "name": "专属模板", "profile": profile}
+    )
+    group(state, platform, group_id)["template_id"] = template_id
+    return profile
+
+
 def test_first_start_uses_catalog_defaults_and_isolates_snapshot(service):
     first = service.snapshot()
     assert [p["id"] for p in first["default_profile"]["items"]] == ["first", "second"]
@@ -34,7 +42,7 @@ def test_group_customization_isolated_by_platform_and_survives_reload(
     customized["title"] = "甲群专属说明"
     customized["items"].reverse()
     customized["items"][0].update(enabled=True, body="/乙 仅甲群展示的说明")
-    group(state, "bot-a", "123")["profile"] = customized
+    bind(state, "bot-a", "123", customized)
     service.save(state)
 
     assert service.profile_for("bot-a", "123")["title"] == "甲群专属说明"
@@ -50,15 +58,14 @@ def test_default_edits_only_change_inherited_groups_and_reset_restores_inheritan
     service.observe_group("qq", "1", "独立群")
     service.observe_group("qq", "2", "继承群")
     state = service.snapshot()
-    group(state, "qq", "1")["profile"] = deepcopy(state["default_profile"])
-    group(state, "qq", "1")["profile"]["title"] = "独立群原题"
+    bind(state, "qq", "1", deepcopy(state["default_profile"]))["title"] = "独立群原题"
     state["default_profile"]["title"] = "新的默认标题"
     service.save(state)
     assert service.profile_for("qq", "1")["title"] == "独立群原题"
     assert service.profile_for("qq", "2")["title"] == "新的默认标题"
 
     state = service.snapshot()
-    group(state, "qq", "1")["profile"] = None
+    group(state, "qq", "1")["template_id"] = None
     service.save(state)
     assert service.profile_for("qq", "1")["title"] == "新的默认标题"
 
@@ -78,8 +85,7 @@ def test_second_browser_cannot_overwrite_newer_changes(service, service_module):
 def test_observing_existing_group_does_not_reset_customization(service):
     service.observe_group("qq", "1", "原群名")
     state = service.snapshot()
-    group(state, "qq", "1")["profile"] = deepcopy(state["default_profile"])
-    group(state, "qq", "1")["profile"]["title"] = "保留的帮助"
+    bind(state, "qq", "1", deepcopy(state["default_profile"]))["title"] = "保留的帮助"
     service.save(state)
     service.observe_group("qq", "1", "新群名")
     assert service.profile_for("qq", "1")["title"] == "保留的帮助"
@@ -213,7 +219,7 @@ def test_stock_body_upgrade_preserves_profiles_and_persists_once(
     profile["title"] = "群专属帮助"
     profile["items"].reverse()
     profile["items"][-1].update(title="自定义栏目标题", enabled=False)
-    group(state, "qq", "custom")["profile"] = profile
+    bind(state, "qq", "custom", profile)
     original = service.save(state)
 
     catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
@@ -230,15 +236,10 @@ def test_stock_body_upgrade_preserves_profiles_and_persists_once(
     expected.pop("catalog")
     expected["revision"] += 1
     expected["default_profile"]["items"][0]["body"] = "/甲 新功能的完整说明"
-    group(expected, "qq", "custom")["profile"]["items"][-1]["body"] = (
-        "/甲 新功能的完整说明"
-    )
+    expected["templates"][0]["profile"]["items"][-1]["body"] = "/甲 新功能的完整说明"
     assert json.loads(service.path.read_text(encoding="utf-8")) == expected
     assert reloaded.profile_for("qq", "inherited") == expected["default_profile"]
-    assert (
-        reloaded.profile_for("qq", "custom")
-        == group(expected, "qq", "custom")["profile"]
-    )
+    assert reloaded.profile_for("qq", "custom") == expected["templates"][0]["profile"]
     with pytest.raises(service_module.HelpError) as error:
         reloaded.save(original)
     assert error.value.status == 409

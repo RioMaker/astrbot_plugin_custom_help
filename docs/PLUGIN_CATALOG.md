@@ -8,7 +8,7 @@
 - `astrbot_plugin_junjunget` 的实际元数据已是 `astrbot_plugin_welcome_qqgroup` / v1.4.0；它与正式欢迎插件目录同名、同用途，不重复显示。此处只合并帮助项，不合并仓库或迁移清单。
 - `astrbot_plugin_usage_stats` 在本地存在，版本为 0.2.0，但未出现在此次 HTTP 部署附件或父目录迁移清单中；按本地插件纳入，默认不展示。
 - 附件中你维护的 14 个已启用插件，其帮助默认开启；已停用的可可子人格管理、星轨神谕，以及附件中未出现的分析、Grok、使用统计默认关闭。该初始选择仅供帮助配置初始化，不能据此修改其他插件的真实启用状态。
-- 紫微附件部署版本为 2.3.1，本地已为 2.3.3；种子中的主要指令均为 2.3.1 已有入口，2.3.2/2.3.3 为图片布局调整。自定义帮助 2.2.1 为当前本地版本，附件仍为 1.0.0。
+- 紫微附件部署版本为 2.3.1，本地已为 2.3.3；种子中的主要指令均为 2.3.1 已有入口，2.3.2/2.3.3 为图片布局调整。自定义帮助 2.3.0 为当前本地版本，附件仍为 1.0.0。
 - 说明库按本地源码能力整理。相同版本字符串不代表本地工作区与运行服务器的代码逐字相同；星轨神谕 README 明确其紫微星图仍处于本地预览阶段，保留在默认关闭的说明中。
 - 五行数字卦保留运行标识 `wuxing_num` 和作者元数据；其安装来源属于 RioMaker，按用户维护范围收录，不据此改写原创署名。
 
@@ -24,7 +24,7 @@
 | --- | --- | --- | --- | --- | --- |
 | 太鼓 · 今日人品 | `astrbot_plugin_taiko_rp` | 0.7.3 | 启用 0.7.3 | 开启 | [元数据](../../astrbot_plugin_rp_taikover-master/metadata.yaml)、[说明](../../astrbot_plugin_rp_taikover-master/README.md)、[指令源码](../../astrbot_plugin_rp_taikover-master/main.py) |
 | RTLink · 太鼓成绩 | `rt_link` | v0.22.0 | 启用 v0.22.0 | 开启 | [元数据](../../astrbot_plugin_rt_link/metadata.yaml)、[说明](../../astrbot_plugin_rt_link/README.md)、[指令源码](../../astrbot_plugin_rt_link/main.py) |
-| 六爻起卦 | `astrbot_plugin_liuyao` | 0.33.2 | 启用 0.33.2 | 开启 | [元数据](../../astrbot_plugin_liuyao/metadata.yaml)、[说明](../../astrbot_plugin_liuyao/README.md)、[指令源码](../../astrbot_plugin_liuyao/main.py) |
+| 六爻起卦 | `astrbot_plugin_liuyao` | 0.33.3 | 启用 0.33.2 | 开启 | [元数据](../../astrbot_plugin_liuyao/metadata.yaml)、[说明](../../astrbot_plugin_liuyao/README.md)、[指令源码](../../astrbot_plugin_liuyao/main.py) |
 | 五行数字卦 | `wuxing_num` | v1.7.0 | 启用 v1.7.0 | 开启 | [元数据](../../astrbot_plugin_wuxing_num/metadata.yaml)、[说明](../../astrbot_plugin_wuxing_num/README.md)、[指令源码](../../astrbot_plugin_wuxing_num/main.py) |
 | 紫微斗数排盘 | `astrbot_plugin_ziwei` | 2.3.3 | 启用 2.3.1 | 开启 | [元数据](../../astrbot_plugin_ziwei/metadata.yaml)、[说明](../../astrbot_plugin_ziwei/README.md)、[指令源码](../../astrbot_plugin_ziwei/main.py) |
 | 干支纪时 | `astrbot_plugin_ganzhi` | 0.3.0 | 启用 0.3.0 | 开启 | [元数据](../../astrbot_plugin_ganzhi/metadata.yaml)、[说明](../../astrbot_plugin_ganzhi/README.md)、[指令源码](../../astrbot_plugin_ganzhi/main.py) |
@@ -32,10 +32,10 @@
 | 思考气泡 | `astrbot_plugin_think_bubble` | 1.2.0 | 启用 1.2.0 | 开启 | [元数据](../../astrbot_plugin_think_bubble/metadata.yaml)、[说明](../../astrbot_plugin_think_bubble/README.md)、[指令源码](../../astrbot_plugin_think_bubble/main.py) |
 | 投喂与赞助 | `astrbot_plugin_feed` | 0.3.0 | 启用 0.3.0 | 开启 | [元数据](../../astrbot_plugin_feed/metadata.yaml)、[说明](../../astrbot_plugin_feed/README.md)、[指令源码](../../astrbot_plugin_feed/main.py) |
 | QQ 群入群欢迎 | `astrbot_plugin_welcome_qqgroup` | v1.4.0 | 启用 v1.4.0 | 开启 | [元数据](../../astrbot_plugin_welcome_qqgroup/metadata.yaml)、[说明](../../astrbot_plugin_welcome_qqgroup/README.md)、[指令源码](../../astrbot_plugin_welcome_qqgroup/main.py) |
-| 门禁与积分 | `astrbot_plugin_access_gate` | 2.4.0 | 启用 2.4.0 | 开启 | [元数据](../../astrbot_plugin_access_gate/metadata.yaml)、[说明](../../astrbot_plugin_access_gate/README.md)、[指令源码](../../astrbot_plugin_access_gate/main.py) |
+| 门禁与积分 | `astrbot_plugin_access_gate` | 2.4.2 | 启用 2.4.0 | 开启 | [元数据](../../astrbot_plugin_access_gate/metadata.yaml)、[说明](../../astrbot_plugin_access_gate/README.md)、[指令源码](../../astrbot_plugin_access_gate/main.py) |
 | API 钱包余额 | `astrbot_plugin_wallet_balance` | 0.2.1 | 启用 0.2.1 | 开启 | [元数据](../../astrbot_plugin_wallet_balance/metadata.yaml)、[说明](../../astrbot_plugin_wallet_balance/README.md)、[指令源码](../../astrbot_plugin_wallet_balance/main.py) |
 | 插件更新动态 | `astrbot_plugin_githook` | 0.3.0 | 启用 0.3.0 | 开启 | [元数据](../../astrbot_plugin_githook/metadata.yaml)、[说明](../../astrbot_plugin_githook/README.md)、[指令源码](../../astrbot_plugin_githook/main.py) |
-| 本群帮助 | `astrbot_plugin_custom_help` | 2.2.1 | 启用 1.0.0 | 开启 | [元数据](../../astrbot_plugin_custom_help/metadata.yaml)、[说明](../../astrbot_plugin_custom_help/README.md)、[指令源码](../../astrbot_plugin_custom_help/main.py) |
+| 本群帮助 | `astrbot_plugin_custom_help` | 2.3.0 | 启用 1.0.0 | 开启 | [元数据](../../astrbot_plugin_custom_help/metadata.yaml)、[说明](../../astrbot_plugin_custom_help/README.md)、[指令源码](../../astrbot_plugin_custom_help/main.py) |
 | 使用统计 | `astrbot_plugin_usage_stats` | 0.2.0 | 未出现 | 关闭 | [元数据](../../astrbot_plugin_usage_stats/metadata.yaml)、[说明](../../astrbot_plugin_usage_stats/README.md)、[指令源码](../../astrbot_plugin_usage_stats/main.py) |
 | 可可子人格管理 | `astrbot_plugin_persona_manager` | 0.4.0 | 停用 0.4.0 | 关闭 | [元数据](../../astrbot_plugin_persona_manager/metadata.yaml)、[说明](../../astrbot_plugin_persona_manager/README.md)、[指令源码](../../astrbot_plugin_persona_manager/main.py) |
 | 星轨神谕 · 星图 | `astrbot_plugin_astro_oracle` | 0.1.5 | 停用 0.1.5 | 关闭 | [元数据](../../astrbot_plugin_astro_oracle/metadata.yaml)、[说明](../../astrbot_plugin_astro_oracle/README.md)、[指令源码](../../astrbot_plugin_astro_oracle/main.py) |
@@ -238,8 +238,9 @@ AstrBot 管理员：/accessgate status 查看状态；/accessgate help 查看管
 查看本群已选择的插件说明。
 
 ```text
-/help 或 /帮助：查看本群帮助图，包含管理员为当前群选择的插件说明。
-管理员可在自定义帮助的管理页面选择群聊，勾选展示的插件、编辑说明和表头清单、调整拼接顺序并预览。
+/help 或 /帮助：查看当前群绑定模板的插件帮助图。
+管理员为本群配置后，可单独 @机器人、发送设定的点名名称（默认可可子）或戳机器人查看相同帮助；以当前群实际开启的入口为准。
+管理员可创建和复制模板，编辑插件说明与表头清单、调整顺序，勾选应用的群并生成预览。
 帮助展示开关只决定本图包含哪些说明；插件本身的启用、群授权、额度和权限仍由各插件管理。
 ```
 
@@ -315,3 +316,8 @@ AstrBot 管理员可用 /grok重置 <QQ号或群号> 重置指定额度，all �
 ## 2026-11-10 样式读取
 
 说明文字沿用本文核对范围。v2.1.0 新增读取已安装六爻、紫微和 RTLink 帮助样式；只更新本插件版本，不自动改写已保存说明。原生风格来源、资源要求和回退规则见 [README](../README.md#帮助图片风格)。
+
+
+## 2026-11-11 帮助模板与快捷入口
+
+自定义帮助 v2.3.0 改为模板绑定群聊，加入可组合的空 @、独立点名（名称可编辑）和戳机器人入口；按群开启快捷帮助。六爻 v0.33.3 移除旧通用 @ 兜底，门禁 v2.4.2 在白名单、休息及戳一戳积分处理后衔接帮助。只更新本次涉及插件的本地版本；附件部署状态仍保留原快照，旧六爻群号不会自动启用新入口。
