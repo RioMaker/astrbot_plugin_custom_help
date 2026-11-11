@@ -39,6 +39,8 @@
               </div>
               <label>点名名称<input id="bot-name" maxlength="40" placeholder="可可子" /></label>
               <p class="section-description">仅在下方开启“快捷帮助”的群生效。单独 @ 机器人、单独发送点名名称或戳机器人时返回此模板的帮助图；/help 始终可用。</p>
+              <p id="shortcut-status" class="shortcut-status" role="status" aria-live="polite"></p>
+              <button id="enable-template-shortcuts" class="button small" type="button" hidden>为本模板的群开启快捷帮助</button>
             </section>
             <details class="panel assignment-panel" open>
               <summary><span>应用群聊</span><span id="assigned-count" class="badge"></span></summary>
@@ -46,7 +48,7 @@
                 <p id="assignment-note" class="section-description"></p>
                 <label class="search"><span class="sr-only">筛选可应用的群</span><input id="apply-search" type="search" placeholder="搜索群名 / 群号 / 平台" /></label>
                 <div class="assignment-actions"><button id="assign-visible" class="text-button" type="button">应用到筛选的群</button><button id="release-visible" class="text-button" type="button">移回默认模板</button></div>
-                <div class="assignment-head"><span>应用模板 · 群聊</span><span>快捷帮助</span></div>
+                <div class="assignment-head"><span>应用模板 · 群聊</span><span>群快捷帮助总开关</span></div>
                 <div id="group-assignments" class="group-assignments"></div>
               </div>
             </details>

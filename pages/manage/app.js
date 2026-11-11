@@ -59,6 +59,24 @@ function updateActions() {
   $("workspace").inert = busy;
   $("reload").disabled = busy;
   $("export-draft").disabled = busy || !state;
+  renderShortcutStatus();
+}
+
+function renderShortcutStatus() {
+  if (!state) return;
+  const groups = state.groups.filter(isAssigned);
+  const hasTrigger = ["at", "name", "poke"].some((key) => profile().triggers[key]);
+  const enabled = groups.filter((group) => group.shortcut_enabled).length;
+  const active = hasTrigger ? enabled : 0;
+  const hint = !groups.length ? "请先将群聊应用到此模板。"
+    : !hasTrigger ? "尚未选择触发方式；这些群仍可使用 /help。"
+    : !enabled ? "模板已选择触发方式，但群总开关全部关闭，快捷帮助不会触发。"
+    : enabled < groups.length ? "其余群仅使用 /help；可在下方单独调整群总开关。"
+    : "本模板的群均已开启所选触发方式。";
+  $("shortcut-status").textContent = `快捷帮助${dirty ? "（待保存）" : ""}：${active} / ${groups.length} 个群已启用。${hint}`;
+  $("shortcut-status").className = `shortcut-status${hasTrigger && groups.length && active < groups.length ? " warning" : ""}`;
+  $("enable-template-shortcuts").hidden = !hasTrigger || !groups.length || enabled === groups.length;
+  $("enable-template-shortcuts").disabled = busy;
 }
 
 function invalidatePreview(message = "内容已修改，请重新生成预览。") {
@@ -179,12 +197,16 @@ function renderAssignments() {
     shortcut.checked = group.shortcut_enabled;
     shortcut.disabled = !assigned;
     shortcut.setAttribute("aria-label", `${group.name || group.group_id} 开启快捷帮助`);
+    const shortcutLabel = element("label", "shortcut-switch");
+    const shortcutText = element("span", "", group.shortcut_enabled ? "已开启" : "仅 /help");
+    shortcutLabel.append(shortcut, shortcutText);
     shortcut.addEventListener("change", () => {
       group.shortcut_enabled = shortcut.checked;
+      shortcutText.textContent = shortcut.checked ? "已开启" : "仅 /help";
       markDirty();
       renderGroups();
     });
-    row.append(label, shortcut);
+    row.append(label, shortcutLabel);
     list.append(row);
   }
   if (!groups.length) list.append(element("p", "empty-groups", "没有匹配的群聊，可刷新群聊或在群内发送消息。"));
@@ -533,6 +555,11 @@ for (const key of ["at", "name", "poke"]) {
     markDirty();
   });
 }
+$("enable-template-shortcuts").addEventListener("click", () => {
+  if (busy || !state || !["at", "name", "poke"].some((key) => profile().triggers[key])) return;
+  for (const group of state.groups.filter(isAssigned)) group.shortcut_enabled = true;
+  refreshBindings();
+});
 $("bot-name").addEventListener("input", (event) => {
   profile().triggers.bot_name = event.target.value;
   markDirty();

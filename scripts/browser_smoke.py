@@ -118,9 +118,34 @@ def run(output: Path):
                 page.get_by_role(
                     "checkbox", name="应用到 可可子的朋友们", exact=True
                 ).check()
+                assert (
+                    "0 / 2 个群已启用" in page.locator("#shortcut-status").inner_text()
+                )
+                assert (
+                    "群总开关全部关闭" in page.locator("#shortcut-status").inner_text()
+                )
+                page.locator("#enable-template-shortcuts").click()
+                assert (
+                    "2 / 2 个群已启用" in page.locator("#shortcut-status").inner_text()
+                )
+                assert not page.get_by_role(
+                    "checkbox", name="默认聊天群 开启快捷帮助", exact=True
+                ).is_checked()
                 page.get_by_role(
-                    "checkbox", name="太鼓交流一群 开启快捷帮助", exact=True
-                ).check()
+                    "checkbox", name="可可子的朋友们 开启快捷帮助", exact=True
+                ).uncheck()
+                assert (
+                    "1 / 2 个群已启用" in page.locator("#shortcut-status").inner_text()
+                )
+                assert "待保存" in page.locator("#shortcut-status").inner_text()
+                for trigger in ("at", "name", "poke"):
+                    page.locator("#trigger-" + trigger).uncheck()
+                assert (
+                    "0 / 2 个群已启用" in page.locator("#shortcut-status").inner_text()
+                )
+                assert not page.locator("#enable-template-shortcuts").is_visible()
+                for trigger in ("at", "name", "poke"):
+                    page.locator("#trigger-" + trigger).check()
                 assert "2 个群" in page.locator("#assigned-count").inner_text()
                 assert "默认聊天群" in page.locator("#default-members").text_content()
                 assert (
@@ -158,6 +183,7 @@ def run(output: Path):
                     "document.querySelector('#save-state').textContent==='全部修改已保存'"
                 )
                 first = service.profile_for("qq-main", "10001")
+                assert "待保存" not in page.locator("#shortcut-status").inner_text()
                 assert first["title"] == "🍫 太鼓一群 · 专属帮助"
                 assert first["items"][0]["id"] == "rt_link"
                 assert not first["items"][5]["enabled"]

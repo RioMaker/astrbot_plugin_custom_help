@@ -21,7 +21,7 @@ from .help_styles import StyleReader, runtime_sources
 from .help_triggers import trigger_for
 
 PLUGIN_NAME = "astrbot_plugin_custom_help"
-PLUGIN_VERSION = "2.3.1"
+PLUGIN_VERSION = "2.3.2"
 HELP_PRIORITY = 1000
 DEFAULT_HELP_TEXT = (
     "这里是自定义帮助信息。\n\n请在 AstrBot WebUI 的插件配置中修改“自定义帮助内容”。"
