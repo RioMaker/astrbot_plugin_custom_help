@@ -11,8 +11,10 @@ from PIL import Image, ImageDraw, ImageFont, PngImagePlugin
 
 if __package__:
     from .help_styles import HelpStyle, StyleReader, keko_style
+    from .help_text import draw_text, text_units, text_width
 else:
     from help_styles import HelpStyle, StyleReader, keko_style
+    from help_text import draw_text, text_units, text_width
 
 WIDTH = 1080
 PAGE_HEIGHT = 4800
@@ -55,8 +57,8 @@ def _wrap(text, font, width):
             yield ""
             continue
         line = ""
-        for char in paragraph:
-            if line and font.getlength(line + char) > width:
+        for char in text_units(paragraph):
+            if line and text_width(line + char, font) > width:
                 yield line
                 line = char
             else:
@@ -196,7 +198,8 @@ def _index(profile, group_name):
         image = _tech_background(height)
         draw = ImageDraw.Draw(image)
         p = style.palette
-        draw.text(
+        draw_text(
+            image,
             (MARGIN, 68),
             "CUSTOM HELP  /  FUNCTION DIRECTORY",
             font=fonts[22],
@@ -216,7 +219,8 @@ def _index(profile, group_name):
                         fill=p["paper"],
                         outline=p["border"],
                     )
-                    draw.text(
+                    draw_text(
+                        image,
                         (x + 18, y + 16),
                         f"{number:02d}",
                         font=fonts[27],
@@ -224,7 +228,8 @@ def _index(profile, group_name):
                         anchor="lt",
                     )
                     for n, line in enumerate(lines):
-                        draw.text(
+                        draw_text(
+                            image,
                             (x + 74, y + 16 + n * 39),
                             line,
                             font=fonts[27],
@@ -245,7 +250,9 @@ def _index(profile, group_name):
                     if kind == "muted"
                     else p["ink"]
                 )
-                draw.text((MARGIN, y), text, font=fonts[size], fill=color, anchor="lt")
+                draw_text(
+                    image, (MARGIN, y), text, font=fonts[size], fill=color, anchor="lt"
+                )
             y += row_height((text, size, kind))
         result.append(Segment(image, "__index__", "tech", part, plugin_list(profile)))
     return result
@@ -315,7 +322,8 @@ def _section(item, number, style):
                 fill=p["paper"] if style.kind == "keko" else p["panel"],
                 outline=p["border"],
             )
-            draw.text(
+            draw_text(
+                image,
                 (x + 32, 93),
                 f"{number:02d}",
                 font=title_font,
@@ -323,7 +331,8 @@ def _section(item, number, style):
                 anchor="mm",
             )
         for index, title in enumerate(titles):
-            draw.text(
+            draw_text(
+                image,
                 (x + 92, 60 + index * 54),
                 title,
                 font=title_font,
@@ -331,7 +340,8 @@ def _section(item, number, style):
                 anchor="lt",
             )
         label = f"{number:02d} / 插件使用说明" + (f" · 续 {part}" if part > 1 else "")
-        draw.text(
+        draw_text(
+            image,
             (MARGIN + 94, 72 + title_height),
             label,
             font=small_font,
@@ -360,7 +370,8 @@ def _section(item, number, style):
                 fill=p["accent"],
             )
             for n, (line, _) in enumerate(chunk[:hero_count]):
-                draw.text(
+                draw_text(
+                    image,
                     (MARGIN + 28, body_top + 14 + n * LINE),
                     line,
                     font=body_font,
@@ -369,7 +380,8 @@ def _section(item, number, style):
                 )
             y = body_top + hero_h + 18
             for line, command in chunk[hero_count:]:
-                draw.text(
+                draw_text(
+                    image,
                     (MARGIN + 28, y),
                     line,
                     font=body_font,
@@ -397,7 +409,8 @@ def _section(item, number, style):
                     fill=p["accent"],
                 )
             for n, (line, command) in enumerate(chunk):
-                draw.text(
+                draw_text(
+                    image,
                     (MARGIN + 28, body_top + 18 + n * LINE),
                     line,
                     font=body_font,
@@ -427,9 +440,9 @@ def _footer(text):
     for start in range(0, len(rows), count):
         chunk = rows[start : start + count]
         image = _tech_background(130 + len(chunk) * 38)
-        draw = ImageDraw.Draw(image)
         for n, line in enumerate(chunk):
-            draw.text(
+            draw_text(
+                image,
                 (MARGIN, 74 + n * 38),
                 line,
                 font=font,

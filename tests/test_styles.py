@@ -308,10 +308,16 @@ def test_real_sibling_style_integration_if_present():
         segment = renderer._section(
             {
                 "id": name,
-                "title": "可编辑的帮助说明",
-                "body": "/help 查看本群帮助\n测试正文，保留原生图案。",
+                "title": "🍫 可编辑的帮助说明",
+                "body": "/help 🍫 查看本群帮助\n测试正文，保留原生图案。",
             },
             1,
             styles[name],
         )[0]
         assert segment.image.width == renderer.WIDTH
+        # Only the chocolate's red wrapper occurs in this title's icon slot.
+        slot = segment.image.crop((154, 60, 192, 106)).convert("RGB")
+        assert (
+            sum(r > 130 and r > g * 1.7 and r > b * 1.5 for r, g, b in slot.getdata())
+            > 10
+        )

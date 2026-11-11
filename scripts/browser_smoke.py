@@ -128,7 +128,7 @@ def run(output: Path):
                     not in page.locator("#default-members").text_content()
                 )
                 page.locator("#preview-group").select_option('["qq-main","10001"]')
-                page.locator("#field-title").fill("太鼓一群 · 专属帮助")
+                page.locator("#field-title").fill("🍫 太鼓一群 · 专属帮助")
                 page.locator("#field-list_title").fill("本群插件帮助清单")
                 page.locator("#field-list_text").fill("欢迎使用本群功能：\n{plugins}")
                 page.locator(".edit-button").first.click()
@@ -158,7 +158,7 @@ def run(output: Path):
                     "document.querySelector('#save-state').textContent==='全部修改已保存'"
                 )
                 first = service.profile_for("qq-main", "10001")
-                assert first["title"] == "太鼓一群 · 专属帮助"
+                assert first["title"] == "🍫 太鼓一群 · 专属帮助"
                 assert first["items"][0]["id"] == "rt_link"
                 assert not first["items"][5]["enabled"]
                 assert service.profile_for("qq-main", "10002") == first

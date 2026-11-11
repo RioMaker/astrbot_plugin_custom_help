@@ -196,7 +196,7 @@ def test_group_help_uses_group_override_and_shared_renderer(plugin_module):
     plugin.service.observe_group("qq", "123", "编辑后的群名")
     state = plugin.service.snapshot()
     profile = state["default_profile"]
-    profile["title"] = "本群专属帮助"
+    profile["title"] = "🍫 本群专属帮助"
     profile["items"][0]["enabled"] = False
     profile["items"][1]["enabled"] = True
     state["templates"] = [{"id": "custom", "name": "独立模板", "profile": profile}]
