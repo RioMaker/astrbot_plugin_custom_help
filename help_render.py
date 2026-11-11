@@ -17,12 +17,25 @@ else:
     from help_text import draw_text, text_units, text_width
 
 WIDTH = 1080
-PAGE_HEIGHT = 4800
+# Bound canvas allocation without shrinking text or silently splitting the image.
+MAX_IMAGE_HEIGHT = 32000
 MARGIN = 62
 GAP = 16
 LINE = 44
 _DEFAULT_READER = StyleReader()
 RAINBOW = ("#E5A1B0", "#EAB881", "#E4CD7C", "#AEC98F", "#87BED3", "#B39DCE")
+
+
+class ImageTooTallError(ValueError):
+    """The complete long image exceeds the renderer's memory budget."""
+
+
+def _check_height(height, available):
+    if height > available:
+        raise ImageTooTallError(
+            f"帮助长图超过 {MAX_IMAGE_HEIGHT} 像素的高度上限，"
+            "请减少展示的插件或精简说明后重新预览。"
+        )
 
 
 def plugin_list(profile):
@@ -139,7 +152,7 @@ class Segment:
     text: str
 
 
-def _index(profile, group_name):
+def _index(profile, group_name, *, max_height=MAX_IMAGE_HEIGHT):
     style = HelpStyle()
     fonts = {size: _font(style, size) for size in (22, 27, 32, 44)}
     rows = []
@@ -183,18 +196,11 @@ def _index(profile, group_name):
             return 36 + max(len(lines) for _, lines in row[0]) * 39
         return row[1] + (34 if row[2] in ("title", "label") else 18)
 
-    batches, batch, used = [], [], 115
-    for row in rows:
-        if batch and used + row_height(row) > PAGE_HEIGHT - 80:
-            batches.append(batch)
-            batch, used = [], 115
-        batch.append(row)
-        used += row_height(row)
-    if batch:
-        batches.append(batch)
+    batches = [rows]
     result = []
     for part, batch in enumerate(batches, 1):
         height = 115 + sum(row_height(row) for row in batch) + 52
+        _check_height(height, max_height)
         image = _tech_background(height)
         draw = ImageDraw.Draw(image)
         p = style.palette
@@ -275,7 +281,7 @@ def _panel_background(style, height):
     return image
 
 
-def _section(item, number, style):
+def _section(item, number, style, *, max_height=MAX_IMAGE_HEIGHT):
     p = style.palette
     title_font = _font(style, 38, heading=True)
     body_font = _font(style, 28)
@@ -284,18 +290,18 @@ def _section(item, number, style):
     titles = list(_wrap(item["title"], title_font, title_width))
     title_height = 54 * len(titles)
     body_top = max(220 if style.kind == "keko" else 0, 150 + title_height)
-    # Preserve every edited character and explicit blank line. Pagination occurs
-    # between wrapped lines, with a complete native-style frame on each part.
+    # Preserve every edited character and explicit blank line in one native panel.
     lines = []
     for raw in (item["body"] or "暂无说明。").split("\n"):
         wrapped = list(_wrap(raw, body_font, WIDTH - MARGIN * 2 - 56))
         lines.extend((text, raw.lstrip().startswith("/")) for text in wrapped)
-    count = max(1, (PAGE_HEIGHT - body_top - 100) // LINE)
+    count = len(lines)
     result = []
     for start in range(0, len(lines), count):
         part = start // count + 1
         chunk = lines[start : start + count]
         height = body_top + len(chunk) * LINE + 72
+        _check_height(height, max_height)
         image = _panel_background(style, height)
         if style.kind == "keko":
             _draw_mascot(image, style, WIDTH - MARGIN, 170, 210, 110)
@@ -339,7 +345,7 @@ def _section(item, number, style):
                 fill=p["accent"] if style.kind == "liuyao" else p["ink"],
                 anchor="lt",
             )
-        label = f"{number:02d} / 插件使用说明" + (f" · 续 {part}" if part > 1 else "")
+        label = f"{number:02d} / 插件使用说明"
         draw_text(
             image,
             (MARGIN + 94, 72 + title_height),
@@ -429,16 +435,17 @@ def _section(item, number, style):
     return result
 
 
-def _footer(text):
+def _footer(text, *, max_height=MAX_IMAGE_HEIGHT):
     if not text:
         return []
     style = HelpStyle()
     font = _font(style, 23)
     rows = list(_wrap(text, font, WIDTH - 2 * MARGIN))
     result = []
-    count = (PAGE_HEIGHT - 130) // 38
+    count = len(rows)
     for start in range(0, len(rows), count):
         chunk = rows[start : start + count]
+        _check_height(130 + len(chunk) * 38, max_height)
         image = _tech_background(130 + len(chunk) * 38)
         for n, line in enumerate(chunk):
             draw_text(
@@ -456,19 +463,12 @@ def _footer(text):
 
 
 def compose(segments):
-    """Pack complete styled panels together; never crop a plugin mid-panel."""
-    batches, batch, height = [], [], 0
-    for segment in segments:
-        if batch and height + GAP + segment.image.height > PAGE_HEIGHT:
-            batches.append(batch)
-            batch, height = [], 0
-        batch.append(segment)
-        height += segment.image.height + (GAP if len(batch) > 1 else 0)
-    if batch:
-        batches.append(batch)
+    """Join all complete panels into one full-resolution image, in order."""
+    batches = [segments] if segments else []
     outputs = []
     for batch in batches:
         height = sum(segment.image.height for segment in batch) + GAP * (len(batch) - 1)
+        _check_height(height, MAX_IMAGE_HEIGHT)
         image = Image.new("RGB", (WIDTH, height), HelpStyle().palette["bg"])
         top = 0
         for segment in batch:
@@ -491,8 +491,18 @@ def compose(segments):
 def render_help(profile, group_name="", styles=None) -> list[bytes]:
     if styles is None:
         styles = _DEFAULT_READER.load(profile["items"])
-    segments = _index(profile, group_name)
+    segments = _index(profile, group_name, max_height=MAX_IMAGE_HEIGHT)
+    used = sum(segment.image.height for segment in segments)
     for number, item in enumerate((i for i in profile["items"] if i["enabled"]), 1):
-        segments.extend(_section(item, number, styles.get(item["id"], HelpStyle())))
-    segments.extend(_footer(profile["footer"]))
+        panels = _section(
+            item,
+            number,
+            styles.get(item["id"], HelpStyle()),
+            max_height=MAX_IMAGE_HEIGHT - used - GAP,
+        )
+        used += sum(panel.image.height + GAP for panel in panels)
+        segments.extend(panels)
+    segments.extend(
+        _footer(profile["footer"], max_height=MAX_IMAGE_HEIGHT - used - GAP)
+    )
     return compose(segments)

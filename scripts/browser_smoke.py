@@ -167,6 +167,12 @@ def run(output: Path):
                     state="visible", timeout=60000
                 )
                 assert "未保存草稿" in page.locator("#preview-state").inner_text()
+                assert "1 张连续长图" in page.locator("#preview-state").inner_text()
+                assert page.locator("#preview-images img").count() == 1
+                page.wait_for_function(
+                    "document.querySelector('#preview-images img').naturalHeight > 4800"
+                )
+                assert page.locator(".preview-image-caption").count() == 0
                 page.locator(".preview-zoom").first.click()
                 assert page.locator("#image-viewer").is_visible()
                 assert (
@@ -174,6 +180,19 @@ def run(output: Path):
                     .get_attribute("src")
                     .startswith("data:image/png;base64,")
                 )
+                page.wait_for_function(
+                    "document.querySelector('#large-preview').naturalHeight > 4800"
+                )
+                assert page.locator(".viewer-content").evaluate(
+                    "el => el.scrollHeight > el.clientHeight"
+                )
+                page.locator(".viewer-content").evaluate(
+                    "el => { el.scrollTop = el.scrollHeight; }"
+                )
+                assert page.locator(".viewer-content").evaluate(
+                    "el => Math.abs(el.scrollHeight - el.clientHeight - el.scrollTop) < 2"
+                )
+                page.screenshot(path=str(output / "long-image-bottom.png"))
                 page.locator("#close-viewer").click()
                 page.evaluate("window.scrollTo(0, 0)")
                 page.screenshot(path=str(output / "editor-overview.png"))

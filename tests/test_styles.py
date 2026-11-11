@@ -125,7 +125,7 @@ def test_keko_style_is_only_used_for_image_help(native_sources):
     assert styles[IMAGE_PLUGIN].mascot_path.is_file()
 
 
-def test_image_help_continuations_keep_keko_without_restyling_other_panels(
+def test_long_image_help_keeps_keko_without_restyling_other_panels(
     service, native_sources
 ):
     profile = service.snapshot()["default_profile"]
@@ -150,7 +150,7 @@ def test_image_help_continuations_keep_keko_without_restyling_other_panels(
     sections = []
     for data in pages:
         with Image.open(BytesIO(data)) as image:
-            assert image.height <= renderer.PAGE_HEIGHT
+            assert image.height <= renderer.MAX_IMAGE_HEIGHT
             sections.extend(json.loads(image.info["help_sections"]))
     assert {section["id"]: section["style"] for section in sections} == {
         "__index__": "tech",
@@ -159,7 +159,8 @@ def test_image_help_continuations_keep_keko_without_restyling_other_panels(
         "text-only": "tech",
         "__footer__": "tech",
     }
-    assert any(s["id"] == IMAGE_PLUGIN and s["part"] > 1 for s in sections)
+    assert len(pages) == 1
+    assert all(s["part"] == 1 for s in sections)
     assert profile == original
 
 
@@ -269,7 +270,7 @@ def test_edited_text_and_native_style_survive_composition_in_selected_order(
     for png in pages:
         with Image.open(BytesIO(png)) as image:
             assert image.width == renderer.WIDTH
-            assert image.height <= renderer.PAGE_HEIGHT
+            assert image.height <= renderer.MAX_IMAGE_HEIGHT
             sections.extend(json.loads(image.info["help_sections"]))
     assert [(section["id"], section["style"]) for section in sections] == [
         ("__index__", "tech"),
@@ -283,17 +284,18 @@ def test_edited_text_and_native_style_survive_composition_in_selected_order(
     assert renderer.render_help(profile, "测试群", styles) != pages
 
 
-def test_native_long_text_continues_without_missing_characters(native_sources):
+def test_native_long_text_stays_in_one_panel_without_missing_characters(native_sources):
     style = styles_module.StyleReader(native_sources).load(catalog())[LIUYAO]
     text = "\n".join(f"/命令{i} " + "长说明" * 40 for i in range(50))
     item = {"id": LIUYAO, "title": "可编辑的长标题" * 8, "body": text}
     segments = renderer._section(item, 1, style)
-    assert len(segments) > 1
+    assert len(segments) == 1
+    assert segments[0].image.height > 4800
     assert "".join(
         segment.text.replace("\n", "") for segment in segments
     ) == text.replace("\n", "")
     assert all(
-        segment.style == "liuyao" and segment.image.height <= renderer.PAGE_HEIGHT
+        segment.style == "liuyao" and segment.image.height <= renderer.MAX_IMAGE_HEIGHT
         for segment in segments
     )
 

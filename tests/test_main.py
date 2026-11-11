@@ -199,6 +199,9 @@ def test_group_help_uses_group_override_and_shared_renderer(plugin_module):
     profile["title"] = "🍫 本群专属帮助"
     profile["items"][0]["enabled"] = False
     profile["items"][1]["enabled"] = True
+    profile["items"][1]["body"] = "\n".join(
+        f"/乙{i} 完整的长图说明" for i in range(140)
+    )
     state["templates"] = [{"id": "custom", "name": "独立模板", "profile": profile}]
     state["groups"][0]["template_id"] = "custom"
     plugin.service.save(state)
@@ -213,7 +216,11 @@ def test_group_help_uses_group_override_and_shared_renderer(plugin_module):
     preview, sent = asyncio.run(run())
     assert event.stopped
     assert sent == preview
+    assert len(sent) == 1
     assert sent[0].startswith(b"\x89PNG")
+    with Image.open(BytesIO(sent[0])) as image:
+        assert image.width == 1080
+        assert image.height > 4800
 
 
 def test_group_render_failure_falls_back_to_its_selected_text(plugin_module):

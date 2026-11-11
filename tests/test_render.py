@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import json
 from copy import deepcopy
 from io import BytesIO
+from unittest.mock import Mock
 
+import pytest
 from conftest import load_module
 from PIL import Image, ImageFont
 
@@ -43,23 +46,71 @@ def test_empty_selection_has_explicit_help_message_and_valid_image(service):
     with Image.open(BytesIO(image_bytes[0])) as image:
         assert image.format == "PNG"
         assert image.width == renderer.WIDTH
-        assert 0 < image.height <= renderer.PAGE_HEIGHT
+        assert 0 < image.height <= renderer.MAX_IMAGE_HEIGHT
 
 
-def test_long_instructions_paginate_with_no_oversized_images(service):
+def test_long_instructions_form_one_image_without_repeated_sections(service):
     renderer = load_module("help_render")
     profile = service.snapshot()["default_profile"]
     profile["items"][0]["body"] = "\n".join(
         f"/命令{i} 这是一条可以编辑的完整说明" for i in range(160)
     )
     before = deepcopy(profile)
-    pages = renderer.render_help(profile, "长说明测试群")
-    assert len(pages) >= 2
-    for data in pages:
-        with Image.open(BytesIO(data)) as image:
-            assert image.width == renderer.WIDTH
-            assert image.height <= renderer.PAGE_HEIGHT
+    images = renderer.render_help(profile, "长说明测试群")
+    assert len(images) == 1
+    with Image.open(BytesIO(images[0])) as image:
+        assert image.width == renderer.WIDTH
+        assert 4800 < image.height <= renderer.MAX_IMAGE_HEIGHT
+        sections = json.loads(image.info["help_sections"])
+        assert [(s["id"], s["part"]) for s in sections] == [
+            ("__index__", 1),
+            ("first", 1),
+            ("__footer__", 1),
+        ]
     assert profile == before
+
+
+def test_long_header_and_footer_stay_whole_in_the_same_image(service):
+    renderer = load_module("help_render")
+    profile = service.snapshot()["default_profile"]
+    profile["intro"] = "说明\n" * 120
+    profile["footer"] = "提示\n" * 140
+    images = renderer.render_help(profile)
+    assert len(images) == 1
+    with Image.open(BytesIO(images[0])) as image:
+        sections = json.loads(image.info["help_sections"])
+        assert [section["id"] for section in sections] == [
+            "__index__",
+            "first",
+            "__footer__",
+        ]
+        assert all(section["part"] == 1 for section in sections)
+
+
+def test_oversized_plugin_is_rejected_before_allocating_its_canvas(
+    service, monkeypatch
+):
+    renderer = load_module("help_render")
+    profile = service.snapshot()["default_profile"]
+    profile["items"][0]["body"] = "\n" * 5999
+    background = Mock(wraps=renderer._panel_background)
+    monkeypatch.setattr(renderer, "_panel_background", background)
+    with pytest.raises(renderer.ImageTooTallError, match="请减少展示的插件"):
+        renderer.render_help(profile)
+    background.assert_not_called()
+
+
+def test_total_canvas_limit_includes_preceding_panels(service, monkeypatch):
+    renderer = load_module("help_render")
+    profile = service.snapshot()["default_profile"]
+    for item in profile["items"]:
+        item.update(enabled=True, body="\n".join(["说明"] * 70))
+    background = Mock(wraps=renderer._panel_background)
+    monkeypatch.setattr(renderer, "MAX_IMAGE_HEIGHT", 5000)
+    monkeypatch.setattr(renderer, "_panel_background", background)
+    with pytest.raises(renderer.ImageTooTallError, match="5000"):
+        renderer.render_help(profile)
+    assert background.call_count == 1
 
 
 def test_cjk_and_unbroken_commands_wrap_within_available_width():

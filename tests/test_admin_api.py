@@ -102,6 +102,23 @@ def test_save_reports_conflict_for_stale_page_without_losing_saved_data(admin):
     )
 
 
+def test_long_image_limit_is_explained_in_preview_without_saving(admin):
+    original = admin.plugin.service.snapshot()
+    admin.web.request.body.return_value = json.dumps(
+        {"profile": original["default_profile"]}
+    ).encode()
+    message = (
+        "帮助长图超过 32000 像素的高度上限，请减少展示的插件或精简说明后重新预览。"
+    )
+    admin.plugin.render_images.side_effect = load_module(
+        "help_render"
+    ).ImageTooTallError(message)
+    response = asyncio.run(admin.guard(admin.preview)())
+    assert response == {"error": message, "code": 400}
+    assert admin.plugin.service.snapshot() == original
+    admin.plugin.log_failure.assert_not_called()
+
+
 @pytest.mark.parametrize(
     "content_type,body,expected",
     [

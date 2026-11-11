@@ -494,10 +494,10 @@ async function preview() {
       const wrapper = element("div");
       const image = element("img");
       image.src = url;
-      image.alt = `${scope}的帮助图，第 ${index + 1} / ${result.images.length} 张`;
+      image.alt = result.images.length === 1 ? `${scope}的完整帮助长图` : `${scope}的帮助图，第 ${index + 1} / ${result.images.length} 张`;
       const zoom = element("button", "preview-zoom");
       zoom.type = "button";
-      zoom.setAttribute("aria-label", `放大查看第 ${index + 1} 张帮助图`);
+      zoom.setAttribute("aria-label", result.images.length === 1 ? "放大查看完整帮助长图" : `放大查看第 ${index + 1} 张帮助图`);
       zoom.addEventListener("click", () => {
         $("large-preview").src = url;
         $("large-preview").alt = image.alt;
@@ -509,7 +509,8 @@ async function preview() {
       images.append(wrapper);
     });
     previewHasImages = true;
-    $("preview-state").textContent = `${scope} · ${result.images.length} 张图片 · ${draftAtRequest ? "当前为未保存草稿，保存后生效" : "当前已保存配置"}`;
+    const format = result.images.length === 1 ? "1 张连续长图" : `${result.images.length} 张图片`;
+    $("preview-state").textContent = `${scope} · ${format} · ${draftAtRequest ? "当前为未保存草稿，保存后生效" : "当前已保存配置"}`;
   } catch (error) {
     if (generation === previewGeneration) {
       $("preview-state").textContent = `预览失败：${error.message || error}`;

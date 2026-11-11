@@ -3,6 +3,7 @@
 import json
 from functools import wraps
 
+from .help_render import ImageTooTallError
 from .help_service import HelpError
 
 PLUGIN_NAME = "astrbot_plugin_custom_help"
@@ -102,9 +103,12 @@ class AdminAPI:
         name = payload.get("group_name", "")
         if not isinstance(name, str) or len(name) > 200:
             raise HelpError("群名称格式不合法。")
-        images, styles = await self.plugin.render_images(
-            profile, name, with_styles=True
-        )
+        try:
+            images, styles = await self.plugin.render_images(
+                profile, name, with_styles=True
+            )
+        except ImageTooTallError as exc:
+            raise HelpError(str(exc)) from exc
         return {
             "images": [
                 "data:image/png;base64," + base64.b64encode(image).decode("ascii")
