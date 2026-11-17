@@ -1,0 +1,10 @@
+Use case: logo-brand
+Asset type: final square plugin avatar / software logo for the AstrBot plugin "自定义帮助" (Custom Help).
+Primary request: design one distinctive polished logo that communicates customizable help menus for group chats. The plugin assembles editable help cards into a shared group-chat guide.
+Subject: a single unified geometric symbol: a broad cyan rounded help card with a short integrated speech-bubble tail, bearing one large beautifully proportioned dark-navy question mark. Two closely stacked rounded card silhouettes peek out from behind the main card, in periwinkle and muted blue, suggesting reusable templates and a collected guide. Keep the stack compact and visually integrated as one emblem; the question mark is the focal point.
+Scene/backdrop: opaque solid deep navy #071321 background fills the entire square canvas edge to edge.
+Style/medium: professional contemporary flat vector-style logo rendered as a high-quality PNG, precise curves and clean edges, confident thick shapes, friendly and technical, carefully balanced negative space.
+Composition/framing: one centered front-facing emblem, no perspective; icon occupies about 72 percent of the square with generous even safe margins; easy recognition at 32 and 64 pixels; 1024x1024 square.
+Color palette: use the plugin's established colors, bright cyan #49E0EA for the main card, periwinkle #739AFF and blue #24465E for the two layers, deep navy #071321 for the question mark and background. Crisp flat color fills.
+Text: only the single question-mark symbol "?"; no words, no letters, no numbers.
+Constraints: one finished logo only, no grid of alternatives, no branding board, no caption, no watermark, no border around the canvas, no mascot, no book illustration, no generic robot face, no stars or sparkles, no extra UI details, no circuitry, no gradients, no glow, no shadows, no 3D, no mockup. Optically balanced, simple, memorable, production-ready.
